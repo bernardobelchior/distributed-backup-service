@@ -8,7 +8,7 @@ A reliable and secure Distributed Backup Service for the Internet.
 
 [João Gomes](https://github.com/joaogomes04) - up201403275
 
-[Nuno Freitas]() - up201404739
+[Nuno Freitas](https://github.com/nunofreitas96) - up201404739
 
 
 ## Purpose of the Application 
