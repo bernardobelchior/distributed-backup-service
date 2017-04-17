@@ -2,10 +2,10 @@
 A reliable and secure Distributed Backup Service for the Internet.
 
 ## Students
-Edgar Passos - up201404131- T1G2
-João Gomes - up201403275 - T1G1
-Bernardo Belchior - up201405381 
-Nuno Freitas - up201404739
+[Bernardo Belchior](https://github.com/bernardobelchior1) - up201405381 
+[Edgar Passos](https://github.com/epassos26) - up201404131
+[João Gomes](https://github.com/joaogomes04) - up201403275
+[Nuno Freitas]() - up201404739
 
 
 ## Purpose of the Application 
