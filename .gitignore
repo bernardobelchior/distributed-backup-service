@@ -1,0 +1,6 @@
+## IDEA Config
+.idea/*
+
+## Output
+out/*
+*.class
