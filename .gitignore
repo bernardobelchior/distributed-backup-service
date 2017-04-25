@@ -1,5 +1,6 @@
 ## IDEA Config
 .idea/*
+*.iml
 
 ## Output
 out/*

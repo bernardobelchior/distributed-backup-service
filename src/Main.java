@@ -1,3 +1,7 @@
+import chord.Node;
+import chord.NodeInfo;
+
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 
@@ -10,13 +14,32 @@ public class Main {
 
         int port = Integer.parseUnsignedInt(args[0]);
 
-        Node node = new Node(port);
+        Node node;
         try {
-            node.start();
-        } catch (UnknownHostException | NoSuchAlgorithmException  e) {
+            node = new Node(port);
+        } catch (UnknownHostException | NoSuchAlgorithmException e) {
             e.printStackTrace();
-            System.err.println("Could not generate host information, aborting...");
+            System.err.println("Could not create node, aborting...");
             return;
+        }
+
+        if (args.length == 3) {
+            InetAddress address;
+
+            try {
+                address = InetAddress.getByName(args[2]);
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+                return;
+            }
+
+            int bootstrapPort = Integer.parseUnsignedInt(args[3]);
+            try {
+                node.bootstrap(new NodeInfo(address, bootstrapPort));
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
         }
     }
 }
