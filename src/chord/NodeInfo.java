@@ -32,4 +32,12 @@ public class NodeInfo {
     public String getIdAsHex() {
         return DatatypeConverter.printHexBinary(id);
     }
+
+    public InetAddress getAddress() {
+        return address;
+    }
+
+    public int getPort() {
+        return port;
+    }
 }
