@@ -8,7 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class NodeInfo {
-    public static final int MAX_NODES = 32;
+    public static final int MAX_NODES = 128;
 
     private final int id;
     private final InetAddress address;
