@@ -8,7 +8,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class NodeInfo {
-    private final byte[] id;
+    public static final int MAX_NODES = 32;
+
+    private final int id;
     private final InetAddress address;
     private final int port;
 
@@ -18,7 +20,7 @@ public class NodeInfo {
         this.id = generateId(address.getAddress(), port);
     }
 
-    private static byte[] generateId(byte[] address, int port) throws NoSuchAlgorithmException {
+    private static int generateId(byte[] address, int port) throws NoSuchAlgorithmException {
         byte[] idGenerator = Arrays.copyOf(address, address.length + 4);
 
         idGenerator[4] = (byte) (port >> 24);
@@ -26,11 +28,11 @@ public class NodeInfo {
         idGenerator[6] = (byte) (port >> 8);
         idGenerator[7] = (byte) port;
 
-        return hash(idGenerator);
+        return Integer.remainderUnsigned(truncateToInt(hash(idGenerator)), MAX_NODES);
     }
 
-    public String getIdAsHex() {
-        return DatatypeConverter.printHexBinary(id);
+    public int getId() {
+        return id;
     }
 
     public InetAddress getAddress() {

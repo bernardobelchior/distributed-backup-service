@@ -31,7 +31,7 @@ public class Node {
         self = new NodeInfo(InetAddress.getLocalHost(), port);
         socketPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
 
-        System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + self.getIdAsHex() + ".");
+        System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(self.getId()) + ".");
         new Thread(this::startAcceptingSockets).start();
     }
 
