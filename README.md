@@ -4,7 +4,7 @@ A reliable and secure Distributed Backup Service for the Internet.
 ## Students
 [Bernardo Belchior](https://github.com/bernardobelchior1) - up201405381 
 
-[Edgar Passos](https://github.com/epassos26) - up201404131
+[Edgar Passos](https://github.com/edgarlpassos) - up201404131
 
 [João Gomes](https://github.com/joaogomes04) - up201403275
 
