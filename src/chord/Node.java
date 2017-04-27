@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class Node {
     /**
-     * chord.Node ID length in bits.
+     * Node ID length in bits.
      */
     public static final int NODE_ID_LENGTH = 160;
 
