@@ -1,15 +1,17 @@
-import chord.Node;
-import chord.NodeInfo;
+package server;
+
+import server.chord.Node;
+import server.chord.NodeInfo;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 
-public class Main {
+public class Server {
     public static void main(String... args) {
         if (args.length != 1 && args.length != 3) {
-            System.err.println("Usage:\njava Main <port> [<node-ip> <node-port>]\nLast two arguments are optional. If not provided, the program will assume this is the first node.");
+            System.err.println("Usage:\njava server.Server <port> [<node-ip> <node-port>]\nLast two arguments are optional. If not provided, the program will assume this is the first node.");
             return;
         }
 

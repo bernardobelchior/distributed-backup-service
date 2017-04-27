@@ -1,4 +1,4 @@
-package chord;
+package server.chord;
 
 public class FingerTable {
 

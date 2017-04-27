@@ -23,7 +23,7 @@ Their passwords are "123456", without quotes.
 ## Purpose of the Application 
 Improve the Distributed Backup Service made in the first assignment, making it more robust and fault-tolerant, while allowing it to be used throughout the internet.
 
-## Main Features 
+## server.Server Features 
 * Backup 
 * Restore
 * Delete

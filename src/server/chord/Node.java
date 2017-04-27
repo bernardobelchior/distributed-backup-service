@@ -1,6 +1,6 @@
-package chord;
+package server.chord;
 
-import dht.Message;
+import server.dht.Message;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -10,8 +10,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,7 +38,7 @@ public class Node {
     /**
      * Starts the process of joining an already established network
      *
-     * @param bootstrapperNode chord.Node to get information from.
+     * @param bootstrapperNode server.chord.Node to get information from.
      */
     public void bootstrap(NodeInfo bootstrapperNode) throws IOException {
         SSLSocket sslSocket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(bootstrapperNode.getAddress(), bootstrapperNode.getPort());

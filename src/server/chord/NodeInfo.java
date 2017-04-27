@@ -1,6 +1,6 @@
-package chord;
+package server.chord;
 
-import static utils.Utils.*;
+import static server.Utils.*;
 
 import javax.xml.bind.DatatypeConverter;
 import java.net.InetAddress;
