@@ -3,6 +3,7 @@ package server.chord;
 import static server.Utils.*;
 
 import javax.xml.bind.DatatypeConverter;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -28,7 +29,9 @@ public class NodeInfo {
         idGenerator[6] = (byte) (port >> 8);
         idGenerator[7] = (byte) port;
 
-        return Integer.remainderUnsigned(truncateToInt(hash(idGenerator)), MAX_NODES);
+
+        BigInteger id = new BigInteger(hash(idGenerator));
+        return Integer.remainderUnsigned(id.intValue(), MAX_NODES);
     }
 
     public int getId() {
