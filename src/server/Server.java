@@ -11,13 +11,15 @@ import java.security.NoSuchAlgorithmException;
 public class Server {
     public static void main(String... args) {
         if (args.length != 1 && args.length != 3) {
-            System.err.println("Usage:\njava server.Server <port> [<node-ip> <node-port>]\nLast two arguments are optional. If not provided, the program will assume this is the first node.");
+            System.err.println("Usage:\njava server.Server <port> [<node-ip> <node-port>]\n" +
+                    "Last two arguments are optional. If not provided, the program will assume this is the first node.");
             return;
         }
 
         int port = Integer.parseUnsignedInt(args[0]);
 
         Node node;
+
         try {
             node = new Node(port);
         } catch (IOException | NoSuchAlgorithmException e) {
@@ -26,6 +28,7 @@ public class Server {
             return;
         }
 
+        /* Joining an existing network */
         if (args.length == 3) {
             InetAddress address;
 
@@ -37,11 +40,11 @@ public class Server {
             }
 
             int bootstrapPort = Integer.parseUnsignedInt(args[2]);
+
             try {
                 node.bootstrap(new NodeInfo(address, bootstrapPort));
             } catch (Exception e) {
                 e.printStackTrace();
-                return;
             }
         }
     }

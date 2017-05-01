@@ -62,7 +62,7 @@ public class Node {
         while (true) {
             try {
                 SSLSocket socket = (SSLSocket) serverSocket.accept();
-                socketPool.submit(() -> connectionOpened(socket));
+                socketPool.submit(() -> openConnection(socket));
             } catch (IOException e) {
                 System.err.println("Error accepting socket.");
                 e.printStackTrace();
@@ -70,7 +70,7 @@ public class Node {
         }
     }
 
-    private void connectionOpened(SSLSocket socket) {
+    private void openConnection(SSLSocket socket) {
         try {
             ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
 
