@@ -15,10 +15,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Node {
+    public static final int MAX_NODES = 128;
     private final int MAX_SIMULTANEOUS_CONNECTIONS = 5;
 
     private final ExecutorService socketPool;
-    private final int port;
     private final NodeInfo self;
     private final FingerTable fingerTable;
 
@@ -26,10 +26,9 @@ public class Node {
      * @param port Port to start the service in
      */
     public Node(int port) throws IOException, NoSuchAlgorithmException {
-        this.port = port;
-        fingerTable = new FingerTable();
         self = new NodeInfo(InetAddress.getLocalHost(), port);
         socketPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
+        fingerTable = new FingerTable(self);
 
         System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(self.getId()) + ".");
         new Thread(this::startAcceptingSockets).start();

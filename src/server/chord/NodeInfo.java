@@ -2,14 +2,12 @@ package server.chord;
 
 import static server.Utils.*;
 
-import javax.xml.bind.DatatypeConverter;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class NodeInfo {
-    public static final int MAX_NODES = 128;
 
     private final int id;
     private final InetAddress address;
@@ -31,7 +29,7 @@ public class NodeInfo {
 
 
         BigInteger id = new BigInteger(hash(idGenerator));
-        return Integer.remainderUnsigned(id.intValue(), MAX_NODES);
+        return Integer.remainderUnsigned(id.intValue(), Node.MAX_NODES);
     }
 
     public int getId() {
