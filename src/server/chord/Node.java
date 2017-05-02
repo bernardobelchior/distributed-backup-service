@@ -34,8 +34,8 @@ public class Node {
         fingerTable = new FingerTable(self);
         predecessor = self;
 
-        for (int i = 0; i < sucessors.length ; i++) {
-           sucessors[i]  = self;
+        for (int i = 0; i < sucessors.length; i++) {
+            sucessors[i] = self;
         }
 
         System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(self.getId()) + ".");
@@ -95,31 +95,31 @@ public class Node {
 
     /**
      * Finds the node corresponding to the given key
+     *
      * @param key key to search
      * @return NodeInfo belonging to the node responsible for the key
      */
-    private NodeInfo lookup(int key, int lastNode){
-        int selfId = self.getId();
+    private NodeInfo lookup(int key, int lastNode) {
         NodeInfo destination;
-        if(between(selfId,sucessors[0].getId(),key)){
-            //successor is the destination
-            //do stuff
+        int selfId = self.getId();
+
+        if (between(selfId, sucessors[0].getId(), key)) {
             destination = sucessors[0];
-        }
-        else destination = fingerTable.lookup(selfId,key);
+        } else destination = fingerTable.lookup(selfId, key);
 
         return destination;
     }
 
     /**
      * Check if a given key is between the lower and upper keys in the Chord circle
+     *
      * @param lower
      * @param upper
      * @param key
      * @return true if the key is between the other two, or equal to the upper key
      */
-    public static boolean between(int lower, int upper, int key){
-        if(lower < upper)
+    public static boolean between(int lower, int upper, int key) {
+        if (lower < upper)
             return key > lower && key <= upper;
 
         else return key > lower || key <= upper;
