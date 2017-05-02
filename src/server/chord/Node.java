@@ -17,9 +17,12 @@ import java.util.concurrent.Executors;
 public class Node {
     public static final int MAX_NODES = 128;
     private final int MAX_SIMULTANEOUS_CONNECTIONS = 5;
+    private final int STORED_SUCCESSORS = 3;
 
     private final ExecutorService socketPool;
     private final NodeInfo self;
+    private NodeInfo predecessor;
+    private final NodeInfo[] sucessors = new NodeInfo[STORED_SUCCESSORS];
     private final FingerTable fingerTable;
 
     /**
@@ -29,6 +32,11 @@ public class Node {
         self = new NodeInfo(InetAddress.getLocalHost(), port);
         socketPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
         fingerTable = new FingerTable(self);
+        predecessor = self;
+
+        for (int i = 0; i < sucessors.length ; i++) {
+           sucessors[i]  = self;
+        }
 
         System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(self.getId()) + ".");
         new Thread(this::startAcceptingSockets).start();
@@ -62,7 +70,7 @@ public class Node {
         while (true) {
             try {
                 SSLSocket socket = (SSLSocket) serverSocket.accept();
-                socketPool.submit(() -> openConnection(socket));
+                socketPool.submit(() -> receiveMessage(socket));
             } catch (IOException e) {
                 System.err.println("Error accepting socket.");
                 e.printStackTrace();
@@ -70,7 +78,7 @@ public class Node {
         }
     }
 
-    private void openConnection(SSLSocket socket) {
+    private void receiveMessage(SSLSocket socket) {
         try {
             ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
 
@@ -84,4 +92,37 @@ public class Node {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Finds the node corresponding to the given key
+     * @param key key to search
+     * @return NodeInfo belonging to the node responsible for the key
+     */
+    private NodeInfo lookup(int key, int lastNode){
+        int selfId = self.getId();
+        NodeInfo destination;
+        if(between(selfId,sucessors[0].getId(),key)){
+            //successor is the destination
+            //do stuff
+            destination = sucessors[0];
+        }
+        else destination = fingerTable.lookup(selfId,key);
+
+        return destination;
+    }
+
+    /**
+     * Check if a given key is between the lower and upper keys in the Chord circle
+     * @param lower
+     * @param upper
+     * @param key
+     * @return true if the key is between the other two, or equal to the upper key
+     */
+    public static boolean between(int lower, int upper, int key){
+        if(lower < upper)
+            return key > lower && key <= upper;
+
+        else return key > lower || key <= upper;
+    }
+
 }
