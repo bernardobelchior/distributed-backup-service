@@ -4,7 +4,7 @@ import server.dht.DistributedHashTable;
 
 import java.math.BigInteger;
 
-public class GetOperation<T> implements Operation {
+public class GetOperation<T> implements Operation<T> {
     private final BigInteger key;
     private final T value;
 

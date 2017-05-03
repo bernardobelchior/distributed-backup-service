@@ -54,7 +54,7 @@ public class Server {
             int bootstrapPort = Integer.parseUnsignedInt(args[2]);
 
             try {
-                node.bootstrap(new NodeInfo(address, bootstrapPort));
+                dht.bootstrapNode(node, new NodeInfo(address, bootstrapPort));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -89,7 +89,7 @@ public class Server {
         }
     }
 
-    private static void listenForMessages(SSLSocket socket, DistributedHashTable<?> dht) {
+    public static void listenForMessages(SSLSocket socket, DistributedHashTable<?> dht) {
         try {
             ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
 
