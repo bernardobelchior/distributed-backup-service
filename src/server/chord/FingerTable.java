@@ -66,7 +66,7 @@ public class FingerTable {
      * @param key the key being searched
      * @return {NodeInfo} of the best next node.
      */
-    public NodeInfo lookup(BigInteger key) {
+    public NodeInfo getBestNextNode(BigInteger key) {
         for (int i = table.length - 1; i > 0; i++) {
             if (between(table[i - 1], table[i], key))
                 return table[i - 1];
