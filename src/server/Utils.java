@@ -1,7 +1,5 @@
 package server;
 
-import javax.xml.bind.DatatypeConverter;
-import javax.xml.crypto.Data;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 

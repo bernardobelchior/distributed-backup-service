@@ -1,11 +1,11 @@
 package server.chord;
 
-import static server.Utils.*;
-
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+
+import static server.Utils.hash;
 
 public class NodeInfo {
 
@@ -42,5 +42,10 @@ public class NodeInfo {
 
     public int getPort() {
         return port;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
     }
 }
