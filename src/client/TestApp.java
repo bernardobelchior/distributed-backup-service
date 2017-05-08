@@ -9,8 +9,6 @@ import java.rmi.registry.Registry;
 
 public class TestApp {
     public static void main(String... args) {
-
-
         String peerAccessPoint = args[0];
         String operation = args[1].toUpperCase();
         String pathName;
@@ -18,7 +16,7 @@ public class TestApp {
         IInitiatorPeer initiatorPeer;
 
         try {
-            Registry registry = LocateRegistry.getRegistry("localhost");
+            Registry registry = LocateRegistry.getRegistry();
             initiatorPeer = (IInitiatorPeer) registry.lookup(peerAccessPoint);
         } catch (NotBoundException | RemoteException e) {
             System.out.println("Could not find connect to peer with access point: " + peerAccessPoint);

@@ -7,20 +7,17 @@ import static server.chord.Node.MAX_NODES;
 public class FingerTable {
     public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
 
-    private NodeInfo[] table;
+    private NodeInfo predecessor;
+    private NodeInfo[] successors;
     private NodeInfo self;
-
-    public FingerTable(NodeInfo self, FingerTable table) {
-        this.self = self;
-        this.table = table.getTable().clone();
-    }
 
     public FingerTable(NodeInfo self) {
         this.self = self;
-        table = new NodeInfo[FINGER_TABLE_SIZE];
+        predecessor = self;
+        successors = new NodeInfo[FINGER_TABLE_SIZE];
 
-        for (int i = 0; i < table.length; i++)
-            table[i] = self;
+        for (int i = 0; i < successors.length; i++)
+            successors[i] = self;
     }
 
     /**
@@ -53,11 +50,11 @@ public class FingerTable {
     }
 
     public void update(int index, NodeInfo nodeInfo) {
-        table[index] = nodeInfo;
+        successors[index] = nodeInfo;
     }
 
-    public NodeInfo[] getTable() {
-        return table;
+    public NodeInfo[] getSuccessors() {
+        return successors;
     }
 
     /**
@@ -67,11 +64,36 @@ public class FingerTable {
      * @return {NodeInfo} of the best next node.
      */
     public NodeInfo getBestNextNode(BigInteger key) {
-        for (int i = table.length - 1; i > 0; i++) {
-            if (between(table[i - 1], table[i], key))
-                return table[i - 1];
+        for (int i = successors.length - 1; i > 0; i++) {
+            if (between(successors[i - 1], successors[i], key))
+                return successors[i - 1];
         }
 
-        return table[table.length - 1];
+        return successors[successors.length - 1];
+    }
+
+    public boolean inRange(BigInteger key) {
+        return between(predecessor, self, key);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("Predecessor:\n");
+        sb.append("ID\n");
+        sb.append(predecessor.getId());
+        sb.append("\n\n");
+        sb.append("Successors:\n");
+        sb.append("Index\t\t\tID\n");
+
+        for (int i = 0; i < successors.length; i++) {
+            sb.append(i);
+            sb.append("\t\t\t");
+            sb.append(successors[i].getId());
+            sb.append("\n");
+        }
+
+        return sb.toString();
     }
 }

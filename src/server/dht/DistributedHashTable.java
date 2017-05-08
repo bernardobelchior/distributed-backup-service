@@ -3,6 +3,7 @@ package server.dht;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.LookupOperation;
+import server.communication.LookupResultOperation;
 import server.communication.Mailman;
 
 import java.io.IOException;
@@ -41,8 +42,17 @@ public class DistributedHashTable<T> {
         }
     }
 
-    public void completeRetrieval(BigInteger key, T value) {
-        ongoingRetrievals.remove(key).complete(value);
+    public void completedLookup(LookupResultOperation<T> resultOperation) {
+        CompletableFuture<T> removedRetrieval = ongoingRetrievals.remove(resultOperation.getKey());
+
+        /* If the lookup operation was meant to return a value, then set it
+         * Otherwise, it means the operation was meant to get the sucessor of the current node.
+          * In this case, update it.
+          * FIXME: Change this to a more flexible system. */
+        if (removedRetrieval != null)
+            removedRetrieval.complete(resultOperation.getValue());
+        else
+            self.setSuccessor(resultOperation.getOrigin());
     }
 
     public boolean inRangeOfCurrentNode(BigInteger key) {
@@ -52,10 +62,9 @@ public class DistributedHashTable<T> {
     /**
      * Starts the process of joining an already established network
      *
-     * @param node         Node to bootstrap.
      * @param bootstrapper Node to lookup information from.
      */
-    public void bootstrapNode(Node node, NodeInfo bootstrapper) throws IOException {
+    public void bootstrapNode(NodeInfo bootstrapper) throws IOException {
         Mailman.sendObject(
                 bootstrapper,
                 new LookupOperation<T>(
@@ -77,5 +86,9 @@ public class DistributedHashTable<T> {
                 e.printStackTrace();
             }
         }
+    }
+
+    public String getState() {
+        return self.getFingerTable().toString();
     }
 }

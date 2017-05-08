@@ -11,5 +11,5 @@ public interface IInitiatorPeer extends Remote {
 
     boolean delete(String filename) throws RemoteException;
 
-    boolean state() throws RemoteException;
+    String state() throws RemoteException;
 }
