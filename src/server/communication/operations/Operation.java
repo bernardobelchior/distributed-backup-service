@@ -1,7 +1,9 @@
-package server.communication;
+package server.communication.operations;
 
 import server.chord.Node;
 
-public interface Operation<T> {
+import java.io.Serializable;
+
+public interface Operation<T> extends Serializable {
     void run(Node currentNode);
 }

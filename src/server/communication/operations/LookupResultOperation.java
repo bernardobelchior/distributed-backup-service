@@ -1,4 +1,4 @@
-package server.communication;
+package server.communication.operations;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
@@ -16,6 +16,7 @@ public class LookupResultOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
+        System.out.println("Running lookup result operation.");
         currentNode.finishedLookup(key, resultNode);
     }
 }

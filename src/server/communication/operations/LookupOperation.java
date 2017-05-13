@@ -1,7 +1,8 @@
-package server.communication;
+package server.communication.operations;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
+import server.communication.Mailman;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -9,6 +10,7 @@ import java.math.BigInteger;
 public class LookupOperation implements Operation {
     private BigInteger key;
     private NodeInfo origin;
+    private boolean isLastHop = false;
 
     public LookupOperation(NodeInfo origin, BigInteger key) {
         this.origin = origin;
@@ -18,11 +20,14 @@ public class LookupOperation implements Operation {
     @Override
     public void run(Node currentNode) {
         try {
-            if (currentNode.keyBelongsToSuccessor(key)) {
-                Mailman.sendObject(currentNode.getSuccessor(), new LookupReturnOperation(origin, key));
-            } else {
-                currentNode.forwardToNextBestSuccessor(this);
-            }
+            System.out.println("Running lookup operation.");
+            if (isLastHop || currentNode.emptyFingerTable())
+                Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
+
+            if (currentNode.keyBelongsToSuccessor(key))
+                isLastHop = true;
+
+            currentNode.forwardToNextBestSuccessor(this);
         } catch (IOException e) {
             e.printStackTrace();
         }

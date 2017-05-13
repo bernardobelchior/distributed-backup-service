@@ -1,5 +1,6 @@
 package server.chord;
 
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
@@ -7,7 +8,7 @@ import java.util.Arrays;
 
 import static server.Utils.hash;
 
-public class NodeInfo {
+public class NodeInfo implements Serializable {
 
     private final int id;
     private final InetAddress address;
@@ -47,5 +48,10 @@ public class NodeInfo {
     @Override
     public int hashCode() {
         return id;
+    }
+
+    @Override
+    public String toString() {
+        return "ID: " + id + "\tIP Address: " + address.toString() + "\tPort: " + port;
     }
 }
