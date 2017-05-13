@@ -1,7 +1,8 @@
 package server.communication;
 
+import server.chord.Node;
 import server.chord.NodeInfo;
-import server.dht.DistributedHashTable;
+import server.communication.operations.Operation;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -10,23 +11,23 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 public class Connection {
-    private boolean open;
     private SSLSocket socket;
     private ObjectOutputStream outputStream;
     private ObjectInputStream inputStream;
     private NodeInfo nodeInfo;
 
     Connection(NodeInfo nodeInfo) throws IOException {
-        this.nodeInfo = nodeInfo;
-        socket = (SSLSocket) SSLSocketFactory.getDefault().createSocket(nodeInfo.getAddress(), nodeInfo.getPort());
-        outputStream = new ObjectOutputStream(socket.getOutputStream());
-        inputStream = new ObjectInputStream(socket.getInputStream());
-
+        this(
+                nodeInfo,
+                (SSLSocket) SSLSocketFactory.getDefault().
+                        createSocket(nodeInfo.getAddress(), nodeInfo.getPort()));
     }
 
-    Connection(NodeInfo nodeInfo, SSLSocket socket) {
+    Connection(NodeInfo nodeInfo, SSLSocket socket) throws IOException {
         this.nodeInfo = nodeInfo;
         this.socket = socket;
+        outputStream = new ObjectOutputStream(socket.getOutputStream());
+        inputStream = new ObjectInputStream(socket.getInputStream());
     }
 
     public boolean isOpen() {
@@ -37,11 +38,27 @@ public class Connection {
         outputStream.writeObject(object);
     }
 
-    public void listen(DistributedHashTable<?> dht) {
+    public void listen(Node currentNode) {
+        while (true) {
+            try {
+                ((Operation) inputStream.readObject()).run(currentNode);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+                closeConnection();
+                return;
+            }
+        }
+    }
+
+    private void closeConnection() {
+        Mailman.connectionClosed(nodeInfo);
+
         try {
-            ((Operation) inputStream.readObject()).run(dht);
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            socket.close();
+        } catch (IOException e1) {
+            e1.printStackTrace();
         }
     }
 

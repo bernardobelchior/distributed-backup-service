@@ -1,7 +1,7 @@
 package server.communication;
 
+import server.chord.Node;
 import server.chord.NodeInfo;
-import server.dht.DistributedHashTable;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -16,12 +16,12 @@ public class Mailman {
     private static final int MAX_SIMULTANEOUS_CONNECTIONS = 128;
 
     private static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
-    private static final ExecutorService socketPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
+    private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
 
-    private static DistributedHashTable<?> dht;
+    private static Node currentNode;
 
-    public static void init(int port, DistributedHashTable<?> dht) {
-        Mailman.dht = dht;
+    public static void init(Node currentNode, int port) {
+        Mailman.currentNode = currentNode;
         new Thread(() -> listenForConnections(port)).start();
     }
 
@@ -59,18 +59,19 @@ public class Mailman {
 
                 Connection connection = new Connection(nodeInfo, socket);
                 addOpenConnection(connection);
-            } catch (IOException e) {
-                System.err.println("Error accepting socket.");
-                e.printStackTrace();
-            } catch (NoSuchAlgorithmException e) {
+            } catch (IOException | NoSuchAlgorithmException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    public static Connection addOpenConnection(Connection connection) throws IOException {
+    private static Connection addOpenConnection(Connection connection) throws IOException {
         openConnections.put(connection.getNodeInfo(), connection);
-        socketPool.submit(() -> connection.listen(dht));
+        connectionsThreadPool.submit(() -> connection.listen(currentNode));
         return connection;
+    }
+
+    public static void connectionClosed(NodeInfo connection) {
+        openConnections.remove(connection);
     }
 }

@@ -8,16 +8,20 @@ public class FingerTable {
     public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
 
     private NodeInfo predecessor;
-    private NodeInfo[] successors;
-    private NodeInfo self;
+    private final NodeInfo[] successors;
+    private final NodeInfo self;
 
     public FingerTable(NodeInfo self) {
         this.self = self;
-        predecessor = self;
+        predecessor = null;
         successors = new NodeInfo[FINGER_TABLE_SIZE];
 
         for (int i = 0; i < successors.length; i++)
-            successors[i] = self;
+            successors[i] = null;
+    }
+
+    public boolean keyBelongsToSuccessor(BigInteger key) {
+        return between(self, successors[0], key);
     }
 
     /**
@@ -28,7 +32,7 @@ public class FingerTable {
      * @param key
      * @return true if the key is between the other two, or equal to the upper key
      */
-    public static boolean between(NodeInfo lower, NodeInfo upper, BigInteger key) {
+    public boolean between(NodeInfo lower, NodeInfo upper, BigInteger key) {
         return between(lower.getId(), upper.getId(), key);
     }
 
@@ -40,7 +44,7 @@ public class FingerTable {
      * @param key
      * @return true if the key is between the other two, or equal to the upper key
      */
-    public static boolean between(int lower, int upper, BigInteger key) {
+    public boolean between(int lower, int upper, BigInteger key) {
         int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
 
         if (lower < upper)
@@ -49,12 +53,9 @@ public class FingerTable {
             return keyOwner > lower || keyOwner <= upper;
     }
 
-    public void update(int index, NodeInfo nodeInfo) {
-        successors[index] = nodeInfo;
-    }
-
-    public NodeInfo[] getSuccessors() {
-        return successors;
+    public void updateSuccessor(int index, NodeInfo successor) {
+        System.out.println("Updated successors[" + index + "] with " + successor);
+        successors[index] = successor;
     }
 
     /**
@@ -72,8 +73,9 @@ public class FingerTable {
         return successors[successors.length - 1];
     }
 
-    public boolean inRange(BigInteger key) {
-        return between(predecessor, self, key);
+    public void setPredecessor(NodeInfo predecessor) {
+        System.out.println("Updated predecessor with: " + predecessor);
+        this.predecessor = predecessor;
     }
 
     @Override
@@ -90,10 +92,31 @@ public class FingerTable {
         for (int i = 0; i < successors.length; i++) {
             sb.append(i);
             sb.append("\t\t\t");
-            sb.append(successors[i].getId());
+            sb.append(successors[i] == null
+                    ? "null"
+                    : successors[i].getId());
             sb.append("\n");
         }
 
         return sb.toString();
+    }
+
+    public NodeInfo getSuccessor() {
+        return successors[0];
+    }
+
+    public NodeInfo getPredecessor() {
+        return predecessor;
+    }
+
+    public boolean isEmpty() {
+        if (predecessor != null)
+            return false;
+
+        for (NodeInfo successor : successors)
+            if (successor != null)
+                return false;
+
+        return true;
     }
 }

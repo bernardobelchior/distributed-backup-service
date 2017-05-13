@@ -35,7 +35,8 @@ public class Server {
         }
 
         DistributedHashTable<byte[]> dht = new DistributedHashTable<>(node);
-        Mailman.init(port, dht);
+        node.setDHT(dht);
+        Mailman.init(node, port);
 
         /* Joining an existing network */
         if (args.length == 4) {
@@ -51,7 +52,10 @@ public class Server {
             int bootstrapPort = Integer.parseUnsignedInt(args[3]);
 
             try {
-                dht.bootstrapNode(new NodeInfo(address, bootstrapPort));
+                if (!node.bootstrap(new NodeInfo(address, bootstrapPort))) {
+                    System.err.println("Node bootstrapping failed. Exiting..");
+                    return;
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -66,7 +70,10 @@ public class Server {
             e.printStackTrace();
         }
 
-
+        try {
+            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
     }
-
 }

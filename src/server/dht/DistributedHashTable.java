@@ -2,15 +2,13 @@ package server.dht;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
-import server.communication.LookupOperation;
-import server.communication.LookupResultOperation;
 import server.communication.Mailman;
+import server.communication.operations.LookupOperation;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 
 public class DistributedHashTable<T> {
     private Node self;
@@ -30,6 +28,8 @@ public class DistributedHashTable<T> {
         ongoingRetrievals.put(key, completableFuture);
 
         /* If the key is in the current node, return it immediately */
+        /*
+        FIXME:
         if (self.inRange(key))
             completableFuture.complete(localValues.getOrDefault(key, def));
 
@@ -39,24 +39,8 @@ public class DistributedHashTable<T> {
         } catch (InterruptedException | ExecutionException | IOException e) {
             e.printStackTrace();
             return def;
-        }
-    }
-
-    public void completedLookup(LookupResultOperation<T> resultOperation) {
-        CompletableFuture<T> removedRetrieval = ongoingRetrievals.remove(resultOperation.getKey());
-
-        /* If the lookup operation was meant to return a value, then set it
-         * Otherwise, it means the operation was meant to get the sucessor of the current node.
-          * In this case, update it.
-          * FIXME: Change this to a more flexible system. */
-        if (removedRetrieval != null)
-            removedRetrieval.complete(resultOperation.getValue());
-        else
-            self.setSuccessor(resultOperation.getOrigin());
-    }
-
-    public boolean inRangeOfCurrentNode(BigInteger key) {
-        return self.inRange(key);
+        }*/
+        return null;
     }
 
     /**
@@ -65,14 +49,21 @@ public class DistributedHashTable<T> {
      * @param bootstrapper Node to lookup information from.
      */
     public void bootstrapNode(NodeInfo bootstrapper) throws IOException {
-        Mailman.sendObject(
-                bootstrapper,
-                new LookupOperation<T>(
-                        self.getInfo(),
-                        BigInteger.valueOf(self.getInfo().getId())));
+        new Thread(() -> {
+            try {
+                Mailman.sendObject(
+                        bootstrapper,
+                        new LookupOperation(
+                                self.getInfo(),
+                                BigInteger.valueOf(self.getInfo().getId())));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
-    public void lookup(LookupOperation<T> lookupOperation) {
+    public void lookup(LookupOperation lookupOperation) {
+        /* FIXME:
         if (inRangeOfCurrentNode(lookupOperation.getKey())) {
             try {
                 Mailman.sendObject(lookupOperation.getOrigin(), localValues.get(lookupOperation.getKey()));
@@ -85,7 +76,7 @@ public class DistributedHashTable<T> {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
+        }*/
     }
 
     public String getState() {
