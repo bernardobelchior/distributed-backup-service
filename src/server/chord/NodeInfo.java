@@ -7,6 +7,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 import static server.Utils.hash;
+import static server.chord.Node.MAX_NODES;
 
 public class NodeInfo implements Serializable {
 
@@ -30,7 +31,7 @@ public class NodeInfo implements Serializable {
 
 
         BigInteger id = new BigInteger(hash(idGenerator));
-        return Integer.remainderUnsigned(id.intValue(), Node.MAX_NODES);
+        return Integer.remainderUnsigned(id.intValue(), MAX_NODES);
     }
 
     public int getId() {
@@ -53,5 +54,10 @@ public class NodeInfo implements Serializable {
     @Override
     public String toString() {
         return "ID: " + id + "\tIP Address: " + address.toString() + "\tPort: " + port;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof NodeInfo && ((NodeInfo) o).id == id;
     }
 }

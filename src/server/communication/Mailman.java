@@ -36,6 +36,11 @@ public class Mailman {
     }
 
     public static void sendObject(NodeInfo nodeInfo, Object object) throws IOException {
+        if (object == null) {
+            System.err.println("Received null object to send.");
+            return;
+        }
+
         getOrOpenConnection(nodeInfo).sendObject(object);
     }
 

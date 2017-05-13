@@ -36,7 +36,6 @@ public class Connection {
 
     public void sendObject(Object object) throws IOException {
         outputStream.writeObject(object);
-        outputStream.flush();
     }
 
     public void listen(Node currentNode) {
@@ -46,6 +45,7 @@ public class Connection {
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
+                e.printStackTrace();
                 closeConnection();
                 return;
             }

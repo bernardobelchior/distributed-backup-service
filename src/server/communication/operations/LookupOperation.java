@@ -22,19 +22,31 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.print("Looking up key " + key + ". ");
+        System.out.println("Looking up key " + key + ". ");
 
         try {
             FingerTable fingerTable = currentNode.getFingerTable();
 
             if (lastHop || fingerTable.isEmpty()) {
-                fingerTable.setPredecessor(lastNode);
-
                 if (fingerTable.isEmpty())
                     fingerTable.updateSuccessor(0, lastNode);
 
-                System.out.println("I own it! Sending my info...");
-                Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
+                fingerTable.setPredecessor(lastNode);
+
+
+                System.out.print("I own it! ");
+                LookupResultOperation lookupResultOperation = new LookupResultOperation(currentNode.getInfo(), key);
+
+                /* If the key should be stored in the origin node, then just complete the lookup.
+                 * Otherwise, send it to the node who requested the lookup. */
+                if (currentNode.getInfo().equals(origin)) {
+                    System.out.println("And I requested it, so it's ok.");
+                    lookupResultOperation.run(currentNode);
+                } else {
+                    System.out.println("Sending my info to the origin...");
+                    Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
+                }
+
                 return;
             }
 

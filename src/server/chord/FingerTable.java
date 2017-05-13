@@ -1,6 +1,8 @@
 package server.chord;
 
 import java.math.BigInteger;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static server.chord.Node.MAX_NODES;
 
@@ -11,6 +13,7 @@ public class FingerTable {
     private final NodeInfo[] successors;
     private final NodeInfo self;
     private boolean empty;
+    private CompletableFuture<Void> fingerTableInitialized = new CompletableFuture<>();
 
     public FingerTable(NodeInfo self) {
         this.self = self;
@@ -59,9 +62,10 @@ public class FingerTable {
         System.out.println("Updated successors[" + index + "] with " + successor);
         successors[index] = successor;
 
-        if (successor != null)
+        if (successor != null) {
             empty = false;
-        else updateEmptiness();
+            fingerTableInitialized.complete(null);
+        } else updateEmptiness();
     }
 
     /**
@@ -71,12 +75,16 @@ public class FingerTable {
      * @return {NodeInfo} of the best next node.
      */
     public NodeInfo getBestNextNode(BigInteger key) {
-        for (int i = successors.length - 1; i > 0; i++) {
-            if (between(successors[i - 1], successors[i], key))
-                return successors[i - 1];
+        NodeInfo bestNextNode = successors[0];
+
+        for (int i = 1; i < successors.length; i++) {
+            if (successors[i] == null || !between(bestNextNode, successors[i], key))
+                break;
+            else
+                bestNextNode = successors[i];
         }
 
-        return successors[successors.length - 1];
+        return bestNextNode;
     }
 
     public void setPredecessor(NodeInfo predecessor) {
@@ -94,7 +102,9 @@ public class FingerTable {
 
         sb.append("Predecessor:\n");
         sb.append("ID\n");
-        sb.append(predecessor.getId());
+        sb.append(predecessor == null
+                ? "null"
+                : predecessor.getId());
         sb.append("\n\n");
         sb.append("Successors:\n");
         sb.append("Index\t\t\tID\n");
@@ -128,5 +138,24 @@ public class FingerTable {
 
     public boolean isEmpty() {
         return empty;
+    }
+
+    private int distanceToNode(BigInteger key) {
+        int remainder = key.remainder(BigInteger.valueOf(MAX_NODES)).intValue();
+
+        return Integer.remainderUnsigned(MAX_NODES + remainder - self.getId(), MAX_NODES);
+    }
+
+    public void updateFingerTable(BigInteger key, NodeInfo owner) {
+        /* Updates successors */
+        double index = Math.log(distanceToNode(key)) / Math.log(2);
+
+        /* if the index is an integer */
+        if (index == (int) index)
+            successors[(int) index] = owner;
+    }
+
+    public void waitForTableInitialization() throws ExecutionException, InterruptedException {
+        fingerTableInitialized.get();
     }
 }

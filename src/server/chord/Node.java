@@ -10,6 +10,9 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
+import static server.Utils.addToNodeId;
+import static server.chord.FingerTable.FINGER_TABLE_SIZE;
+
 public class Node {
     public static final int MAX_NODES = 128;
 
@@ -59,7 +62,12 @@ public class Node {
     }
 
     public void forwardToNextBestNode(LookupOperation lookupOperation) throws IOException {
-        Mailman.sendObject(fingerTable.getBestNextNode(lookupOperation.getKey()), lookupOperation);
+        NodeInfo bestNextNode = fingerTable.getBestNextNode(lookupOperation.getKey());
+
+        System.out.print("Forwarding to: ");
+        System.out.println(bestNextNode == null ? "null" : bestNextNode);
+
+        Mailman.sendObject(bestNextNode, lookupOperation);
     }
 
     /**
@@ -72,27 +80,48 @@ public class Node {
         BigInteger predecessorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId(), MAX_NODES));
 
         CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
-                successor -> fingerTable.updateSuccessor(0, successor));
+                successor -> fingerTable.updateSuccessor(0, successor), threadPool);
 
         successorLookup.get();
 
         CompletableFuture<Void> predecessorLookup = lookup(predecessorKey, bootstrapperNode).thenAcceptAsync(
-                fingerTable::setPredecessor);
+                fingerTable::setPredecessor, threadPool);
 
         predecessorLookup.get();
 
         CompletableFuture<Void> bootstrapping = CompletableFuture.allOf(predecessorLookup, successorLookup);
         bootstrapping.get();
 
-        return !bootstrapping.isCompletedExceptionally() && !bootstrapping.isCancelled();
+        boolean completedOK = !bootstrapping.isCompletedExceptionally() && !bootstrapping.isCancelled();
+
+        if (completedOK)
+            fillFingerTable();
+
+        return completedOK;
     }
 
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
         result.complete(targetNode);
+        fingerTable.updateFingerTable(key, targetNode);
     }
 
     public void setDHT(DistributedHashTable<?> dht) {
         this.dht = dht;
+    }
+
+    public void waitForANodeToJoin() throws ExecutionException, InterruptedException {
+        fingerTable.waitForTableInitialization();
+        fillFingerTable();
+    }
+
+    private void fillFingerTable() {
+        for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
+            try {
+                lookup(BigInteger.valueOf(addToNodeId(self.getId(), (int) Math.pow(2, i))));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

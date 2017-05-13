@@ -11,6 +11,7 @@ import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.ExecutionException;
 
 public class Server {
 
@@ -20,12 +21,9 @@ public class Server {
                     "Last two arguments are optional. If not provided, the program will assume this is the first node.");
             return;
         }
-
-
         int port = Integer.parseUnsignedInt(args[1]);
 
         Node node;
-
         try {
             node = new Node(port);
         } catch (IOException | NoSuchAlgorithmException e) {
@@ -37,6 +35,12 @@ public class Server {
         DistributedHashTable<byte[]> dht = new DistributedHashTable<>(node);
         node.setDHT(dht);
         Mailman.init(node, port);
+
+        try {
+            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(dht));
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
 
         /* Joining an existing network */
         if (args.length == 4) {
@@ -60,14 +64,16 @@ public class Server {
                 e.printStackTrace();
             }
         } else {
+            try {
+                node.waitForANodeToJoin();
+            } catch (ExecutionException | InterruptedException e) {
+                e.printStackTrace();
+                System.err.println("Error waiting for a node to join. Exiting...");
+                return;
+            }
+
             /* TODO: Start the stabilization process.
             * I should do it because I am the first and this ensures that the stabilization process only runs once. */
-        }
-
-        try {
-            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(dht));
-        } catch (RemoteException e) {
-            e.printStackTrace();
         }
 
         try {
