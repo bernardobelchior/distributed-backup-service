@@ -1,5 +1,6 @@
 package server.communication.operations;
 
+import server.chord.FingerTable;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.Mailman;
@@ -9,11 +10,13 @@ import java.math.BigInteger;
 
 public class LookupOperation implements Operation {
     private BigInteger key;
-    private NodeInfo origin;
-    private boolean isLastHop = false;
+    private final NodeInfo origin;
+    private final NodeInfo lastNode;
+    private boolean lastHop = false;
 
     public LookupOperation(NodeInfo origin, BigInteger key) {
         this.origin = origin;
+        lastNode = origin;
         this.key = key;
     }
 
@@ -22,18 +25,26 @@ public class LookupOperation implements Operation {
         System.out.print("Looking up key " + key + ". ");
 
         try {
-            if (isLastHop || currentNode.emptyFingerTable()) {
+            FingerTable fingerTable = currentNode.getFingerTable();
+
+            if (lastHop || fingerTable.isEmpty()) {
+                fingerTable.setPredecessor(lastNode);
+
+                if (fingerTable.isEmpty())
+                    fingerTable.updateSuccessor(0, lastNode);
+
                 System.out.println("I own it! Sending my info...");
                 Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
                 return;
             }
 
             if (currentNode.keyBelongsToSuccessor(key)) {
-                System.out.print("It should belong to my successor.");
-                isLastHop = true;
+                lastHop = true;
+                System.out.println("It should belong to my successor, forwarding to him.");
+            } else {
+                System.out.println("It does not belong to my successor. Forwarding to next best node...");
             }
 
-            System.out.println("Forwarding to next best node...");
             currentNode.forwardToNextBestNode(this);
         } catch (IOException e) {
             e.printStackTrace();

@@ -10,11 +10,13 @@ public class FingerTable {
     private NodeInfo predecessor;
     private final NodeInfo[] successors;
     private final NodeInfo self;
+    private boolean empty;
 
     public FingerTable(NodeInfo self) {
         this.self = self;
         predecessor = null;
         successors = new NodeInfo[FINGER_TABLE_SIZE];
+        empty = true;
 
         for (int i = 0; i < successors.length; i++)
             successors[i] = null;
@@ -56,6 +58,10 @@ public class FingerTable {
     public void updateSuccessor(int index, NodeInfo successor) {
         System.out.println("Updated successors[" + index + "] with " + successor);
         successors[index] = successor;
+
+        if (successor != null)
+            empty = false;
+        else updateEmptiness();
     }
 
     /**
@@ -76,6 +82,10 @@ public class FingerTable {
     public void setPredecessor(NodeInfo predecessor) {
         System.out.println("Updated predecessor with: " + predecessor);
         this.predecessor = predecessor;
+
+        if (predecessor != null)
+            empty = false;
+        else updateEmptiness();
     }
 
     @Override
@@ -101,14 +111,22 @@ public class FingerTable {
         return sb.toString();
     }
 
-    public boolean isEmpty() {
-        if (predecessor != null)
-            return false;
+    private void updateEmptiness() {
+        if (predecessor != null) {
+            empty = false;
+            return;
+        }
 
         for (NodeInfo successor : successors)
-            if (successor != null)
-                return false;
+            if (successor != null) {
+                empty = false;
+                return;
+            }
 
-        return true;
+        empty = true;
+    }
+
+    public boolean isEmpty() {
+        return empty;
     }
 }

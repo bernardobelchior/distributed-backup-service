@@ -69,14 +69,17 @@ public class Node {
      */
     public boolean bootstrap(NodeInfo bootstrapperNode) throws IOException, ExecutionException, InterruptedException {
         BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
-        BigInteger predecessorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + MAX_NODES - 1, MAX_NODES));
-
-        CompletableFuture<Void> predecessorLookup = lookup(predecessorKey, bootstrapperNode).thenAcceptAsync(
-                fingerTable::setPredecessor);
+        BigInteger predecessorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId(), MAX_NODES));
 
         CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
                 successor -> fingerTable.updateSuccessor(0, successor));
 
+        successorLookup.get();
+
+        CompletableFuture<Void> predecessorLookup = lookup(predecessorKey, bootstrapperNode).thenAcceptAsync(
+                fingerTable::setPredecessor);
+
+        predecessorLookup.get();
 
         CompletableFuture<Void> bootstrapping = CompletableFuture.allOf(predecessorLookup, successorLookup);
         bootstrapping.get();
@@ -91,9 +94,5 @@ public class Node {
 
     public void setDHT(DistributedHashTable<?> dht) {
         this.dht = dht;
-    }
-
-    public boolean emptyFingerTable() {
-        return fingerTable.isEmpty();
     }
 }
