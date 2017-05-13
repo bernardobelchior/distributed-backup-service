@@ -19,15 +19,22 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
+        System.out.print("Looking up key " + key + ". ");
+
         try {
-            System.out.println("Running lookup operation.");
-            if (isLastHop || currentNode.emptyFingerTable())
+            if (isLastHop || currentNode.emptyFingerTable()) {
+                System.out.println("I own it! Sending my info...");
                 Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
+                return;
+            }
 
-            if (currentNode.keyBelongsToSuccessor(key))
+            if (currentNode.keyBelongsToSuccessor(key)) {
+                System.out.print("It should belong to my successor.");
                 isLastHop = true;
+            }
 
-            currentNode.forwardToNextBestSuccessor(this);
+            System.out.println("Forwarding to next best node...");
+            currentNode.forwardToNextBestNode(this);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -16,7 +16,7 @@ public class LookupResultOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Running lookup result operation.");
+        System.out.println("Lookup operation for key " + key + " resolved as " + resultNode);
         currentNode.finishedLookup(key, resultNode);
     }
 }

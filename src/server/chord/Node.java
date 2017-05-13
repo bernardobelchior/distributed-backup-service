@@ -32,7 +32,7 @@ public class Node {
         return lookup(key, bestNextNode);
     }
 
-    public CompletableFuture<NodeInfo> lookup(BigInteger key, NodeInfo nodeToLookup) throws IOException {
+    private CompletableFuture<NodeInfo> lookup(BigInteger key, NodeInfo nodeToLookup) throws IOException {
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
 
         if (lookupResult != null)
@@ -58,7 +58,7 @@ public class Node {
         return fingerTable.keyBelongsToSuccessor(key);
     }
 
-    public void forwardToNextBestSuccessor(LookupOperation lookupOperation) throws IOException {
+    public void forwardToNextBestNode(LookupOperation lookupOperation) throws IOException {
         Mailman.sendObject(fingerTable.getBestNextNode(lookupOperation.getKey()), lookupOperation);
     }
 
@@ -68,22 +68,24 @@ public class Node {
      * @param bootstrapperNode Node that will provide the information with which our finger table will be updated.
      */
     public boolean bootstrap(NodeInfo bootstrapperNode) throws IOException, ExecutionException, InterruptedException {
-        BigInteger successorKey = BigInteger.valueOf(self.getId() + 1);
-        BigInteger predecessorKey = BigInteger.valueOf(self.getId() - 1);
+        BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
+        BigInteger predecessorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + MAX_NODES - 1, MAX_NODES));
+
+        CompletableFuture<Void> predecessorLookup = lookup(predecessorKey, bootstrapperNode).thenAcceptAsync(
+                fingerTable::setPredecessor);
 
         CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
-                successor -> fingerTable.updateSuccessor(0, successor),
-                threadPool);
+                successor -> fingerTable.updateSuccessor(0, successor));
 
-        CompletableFuture<Void> predecessorLookup = lookup(predecessorKey, bootstrapperNode).thenAcceptAsync(fingerTable::setPredecessor, threadPool);
-        CompletableFuture<Void> bootstrapping = CompletableFuture.allOf(successorLookup, predecessorLookup);
 
+        CompletableFuture<Void> bootstrapping = CompletableFuture.allOf(predecessorLookup, successorLookup);
         bootstrapping.get();
-        return bootstrapping.isCompletedExceptionally();
+
+        return !bootstrapping.isCompletedExceptionally() && !bootstrapping.isCancelled();
     }
 
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
-        CompletableFuture<NodeInfo> result = ongoingLookups.get(key);
+        CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
         result.complete(targetNode);
     }
 

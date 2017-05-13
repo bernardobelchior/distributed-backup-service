@@ -101,14 +101,6 @@ public class FingerTable {
         return sb.toString();
     }
 
-    public NodeInfo getSuccessor() {
-        return successors[0];
-    }
-
-    public NodeInfo getPredecessor() {
-        return predecessor;
-    }
-
     public boolean isEmpty() {
         if (predecessor != null)
             return false;
