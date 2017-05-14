@@ -2,8 +2,6 @@ package server.chord;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static server.Utils.addToNodeId;
 import static server.chord.Node.MAX_NODES;
@@ -14,17 +12,14 @@ public class FingerTable {
     private NodeInfo predecessor;
     private final NodeInfo[] successors;
     private final NodeInfo self;
-    private boolean empty;
-    private CompletableFuture<Void> fingerTableInitialized = new CompletableFuture<>();
 
     public FingerTable(NodeInfo self) {
         this.self = self;
-        predecessor = null;
+        predecessor = self;
         successors = new NodeInfo[FINGER_TABLE_SIZE];
-        empty = true;
 
         for (int i = 0; i < successors.length; i++)
-            successors[i] = null;
+            successors[i] = self;
     }
 
     public boolean keyBelongsToSuccessor(BigInteger key) {
@@ -63,11 +58,6 @@ public class FingerTable {
     public void updateSuccessor(int index, NodeInfo successor) {
         System.out.println("Updated successors[" + index + "] with " + successor);
         successors[index] = successor;
-
-        if (successor != null) {
-            empty = false;
-            fingerTableInitialized.complete(null);
-        } else updateEmptiness();
     }
 
     /**
@@ -87,15 +77,6 @@ public class FingerTable {
         }
 
         return bestNextNode;
-    }
-
-    public void setPredecessor(NodeInfo predecessor) {
-        System.out.println("Updated predecessor with: " + predecessor);
-        this.predecessor = predecessor;
-
-        if (predecessor != null)
-            empty = false;
-        else updateEmptiness();
     }
 
     @Override
@@ -122,44 +103,6 @@ public class FingerTable {
         return sb.toString();
     }
 
-    private void updateEmptiness() {
-        if (predecessor != null) {
-            empty = false;
-            return;
-        }
-
-        for (NodeInfo successor : successors)
-            if (successor != null) {
-                empty = false;
-                return;
-            }
-
-        empty = true;
-    }
-
-    public boolean isEmpty() {
-        return empty;
-    }
-
-    private int distanceToNode(BigInteger key) {
-        int remainder = key.remainder(BigInteger.valueOf(MAX_NODES)).intValue();
-
-        return Integer.remainderUnsigned(MAX_NODES + remainder - self.getId(), MAX_NODES);
-    }
-
-    public void updateFingerTable(BigInteger key, NodeInfo owner) {
-        /* Updates successors */
-        double index = Math.log(distanceToNode(key)) / Math.log(2);
-
-        /* if the index is an integer */
-        if (index == (int) index)
-            successors[(int) index] = owner;
-    }
-
-    public void waitForTableInitialization() throws ExecutionException, InterruptedException {
-        fingerTableInitialized.get();
-    }
-
     public void fill(Node currentNode) {
         for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
             /* (NodeId + 2^i) mod MAX_NODES */
@@ -176,5 +119,15 @@ public class FingerTable {
                 e.printStackTrace();
             }
         }
+    }
+
+    public void updateFingerTable(NodeInfo node) {
+        BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
+        if (between(predecessor, self, keyEquivalent))
+            predecessor = node;
+
+        for (int i = 0; i < successors.length; i++)
+            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), successors[i].getId(), keyEquivalent))
+                successors[i] = node;
     }
 }

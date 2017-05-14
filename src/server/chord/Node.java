@@ -58,11 +58,6 @@ public class Node {
         return fingerTable.keyBelongsToSuccessor(key);
     }
 
-    public void forwardToNextBestNode(LookupOperation lookupOperation) throws IOException {
-        NodeInfo bestNextNode = fingerTable.getBestNextNode(lookupOperation.getKey());
-        Mailman.sendObject(bestNextNode, lookupOperation);
-    }
-
     /**
      * Add the node to the network and update its finger table.
      *
@@ -87,19 +82,17 @@ public class Node {
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
         result.complete(targetNode);
-        fingerTable.updateFingerTable(key, targetNode);
     }
 
     public void setDHT(DistributedHashTable<?> dht) {
         this.dht = dht;
     }
 
-    public void waitForANodeToJoin() throws ExecutionException, InterruptedException {
-        fingerTable.waitForTableInitialization();
-        fillFingerTable();
-    }
-
     private void fillFingerTable() {
         fingerTable.fill(this);
+    }
+
+    public NodeInfo getNextBestNode(BigInteger key) {
+        return fingerTable.getBestNextNode(key);
     }
 }

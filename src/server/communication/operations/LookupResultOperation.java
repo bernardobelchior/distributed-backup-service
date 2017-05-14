@@ -19,4 +19,9 @@ public class LookupResultOperation implements Operation {
         System.out.println("Lookup operation for key " + key + " resolved as " + resultNode.getId());
         currentNode.finishedLookup(key, resultNode);
     }
+
+    @Override
+    public String getKey() {
+        return String.valueOf(key);
+    }
 }

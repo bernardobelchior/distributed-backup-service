@@ -2,6 +2,7 @@ package server.communication;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
+import server.communication.operations.Operation;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -30,10 +31,6 @@ public class Mailman {
     }
 
     private static Connection getOrOpenConnection(NodeInfo nodeInfo) throws IOException {
-        if(nodeInfo.getId() == currentNode.getInfo().getId())
-           System.err.println("WARNING! Trying to connect with self!");
-
-
         return isConnectionOpen(nodeInfo)
                 ? openConnections.get(nodeInfo)
                 : addOpenConnection(new Connection(nodeInfo));
@@ -44,6 +41,9 @@ public class Mailman {
             System.err.println("Received null object to send.");
             return;
         }
+
+        if(nodeInfo.getId() == currentNode.getInfo().getId())
+            System.err.println("WARNING! Trying to send object to self! Looking for object " + ((Operation) object).getKey());
 
         getOrOpenConnection(nodeInfo).sendObject(object);
     }
