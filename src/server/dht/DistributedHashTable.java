@@ -1,11 +1,7 @@
 package server.dht;
 
 import server.chord.Node;
-import server.chord.NodeInfo;
-import server.communication.Mailman;
-import server.communication.operations.LookupOperation;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,43 +39,13 @@ public class DistributedHashTable<T> {
         return null;
     }
 
-    /**
-     * Starts the process of joining an already established network
-     *
-     * @param bootstrapper Node to lookup information from.
-     */
-    public void bootstrapNode(NodeInfo bootstrapper) throws IOException {
-        new Thread(() -> {
-            try {
-                Mailman.sendObject(
-                        bootstrapper,
-                        new LookupOperation(
-                                self.getInfo(),
-                                BigInteger.valueOf(self.getInfo().getId())));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
-    public void lookup(LookupOperation lookupOperation) {
-        /* FIXME:
-        if (inRangeOfCurrentNode(lookupOperation.getKey())) {
-            try {
-                Mailman.sendObject(lookupOperation.getOrigin(), localValues.get(lookupOperation.getKey()));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            try {
-                self.lookup(lookupOperation.getKey(), lookupOperation);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }*/
-    }
-
     public String getState() {
-        return self.getFingerTable().toString();
+        StringBuilder sb = new StringBuilder();
+        sb.append("Current Node ID: ");
+        sb.append(self.getInfo().getId());
+        sb.append("\n\n");
+
+        sb.append(self.getFingerTable().toString());
+        return sb.toString();
     }
 }

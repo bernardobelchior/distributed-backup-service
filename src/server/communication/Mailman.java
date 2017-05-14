@@ -30,6 +30,10 @@ public class Mailman {
     }
 
     private static Connection getOrOpenConnection(NodeInfo nodeInfo) throws IOException {
+        if(nodeInfo.getId() == currentNode.getInfo().getId())
+           System.err.println("WARNING! Trying to connect with self!");
+
+
         return isConnectionOpen(nodeInfo)
                 ? openConnections.get(nodeInfo)
                 : addOpenConnection(new Connection(nodeInfo));

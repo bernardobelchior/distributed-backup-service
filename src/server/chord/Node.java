@@ -10,9 +10,6 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
-import static server.Utils.addToNodeId;
-import static server.chord.FingerTable.FINGER_TABLE_SIZE;
-
 public class Node {
     public static final int MAX_NODES = 128;
 
@@ -73,22 +70,13 @@ public class Node {
      */
     public boolean bootstrap(NodeInfo bootstrapperNode) throws IOException, ExecutionException, InterruptedException {
         BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
-        BigInteger predecessorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId(), MAX_NODES));
 
         CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
                 successor -> fingerTable.updateSuccessor(0, successor), threadPool);
 
         successorLookup.get();
 
-        CompletableFuture<Void> predecessorLookup = lookup(predecessorKey, bootstrapperNode).thenAcceptAsync(
-                fingerTable::setPredecessor, threadPool);
-
-        predecessorLookup.get();
-
-        CompletableFuture<Void> bootstrapping = CompletableFuture.allOf(predecessorLookup, successorLookup);
-        bootstrapping.get();
-
-        boolean completedOK = !bootstrapping.isCompletedExceptionally() && !bootstrapping.isCancelled();
+        boolean completedOK = !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
 
         if (completedOK)
             fillFingerTable();
@@ -112,12 +100,6 @@ public class Node {
     }
 
     private void fillFingerTable() {
-        for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
-            try {
-                lookup(BigInteger.valueOf(addToNodeId(self.getId(), (int) Math.pow(2, i))));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        fingerTable.fill(this);
     }
 }

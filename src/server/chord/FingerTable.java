@@ -1,9 +1,11 @@
 package server.chord;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static server.Utils.addToNodeId;
 import static server.chord.Node.MAX_NODES;
 
 public class FingerTable {
@@ -100,8 +102,7 @@ public class FingerTable {
     public String toString() {
         StringBuilder sb = new StringBuilder();
 
-        sb.append("Predecessor:\n");
-        sb.append("ID\n");
+        sb.append("Predecessor ID: ");
         sb.append(predecessor == null
                 ? "null"
                 : predecessor.getId());
@@ -157,5 +158,23 @@ public class FingerTable {
 
     public void waitForTableInitialization() throws ExecutionException, InterruptedException {
         fingerTableInitialized.get();
+    }
+
+    public void fill(Node currentNode) {
+        for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
+            /* (NodeId + 2^i) mod MAX_NODES */
+            BigInteger keyToLookup = BigInteger.valueOf(addToNodeId(self.getId(), (int) Math.pow(2, i)));
+
+            try {
+                /* If the key corresponding to the ith row of the finger table stands between me and my successor,
+                * it means that successors[i] is still my successor. If it is not, look for the corresponding node. */
+                if (between(self, successors[0], keyToLookup))
+                    successors[i] = successors[0];
+                else
+                    currentNode.lookup(keyToLookup);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

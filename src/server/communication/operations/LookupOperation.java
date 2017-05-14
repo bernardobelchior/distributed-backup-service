@@ -22,7 +22,7 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId());
+        System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Is last hop? " + lastHop);
 
         try {
             FingerTable fingerTable = currentNode.getFingerTable();
@@ -35,13 +35,12 @@ public class LookupOperation implements Operation {
 
                 LookupResultOperation lookupResultOperation = new LookupResultOperation(currentNode.getInfo(), key);
 
-                /* If the key should be stored in the origin node, then just complete the lookup.
-                 * Otherwise, send it to the node who requested the lookup. */
+                /* If the key belongs to the origin node, then just complete the lookup.
+                 * Otherwise, send it to the node which requested the lookup. */
                 if (currentNode.getInfo().equals(origin))
                     lookupResultOperation.run(currentNode);
                 else
                     Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
-
 
                 return;
             }
