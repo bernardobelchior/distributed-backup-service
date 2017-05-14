@@ -177,4 +177,9 @@ public class FingerTable {
             }
         }
     }
+
+    public NodeInfo getSuccessor(){
+        return successors[0];
+    }
+
 }

@@ -46,6 +46,7 @@ public class Node {
         return lookupResult;
     }
 
+
     public NodeInfo getInfo() {
         return self;
     }
@@ -78,8 +79,25 @@ public class Node {
 
         boolean completedOK = !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
 
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(5);
+        executor.scheduleWithFixedDelay(() -> {
+            try {
+                CompletableFuture<Void> checkSuccessor = lookup(successorKey).thenAcceptAsync(successor ->
+                {
+                    NodeInfo currentSucessor = fingerTable.getSuccessor();
+                    if (currentSucessor.getId() != successor.getId()) {
+                        fingerTable.updateSuccessor(0, successor);
+                    }
+                    fillFingerTable();
+                }, threadPool);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }, 5, 5, TimeUnit.SECONDS);
+
         if (completedOK)
             fillFingerTable();
+
 
         return completedOK;
     }
