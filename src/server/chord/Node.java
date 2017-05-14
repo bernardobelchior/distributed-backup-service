@@ -18,6 +18,7 @@ public class Node {
     private DistributedHashTable<?> dht;
     private final ConcurrentHashMap<BigInteger, CompletableFuture<NodeInfo>> ongoingLookups = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
+//    private final ScheduledThreadPoolExecutor stabilizationExecutor = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(5);
 
     /**
      * @param port Port to start the service in
@@ -25,6 +26,8 @@ public class Node {
     public Node(int port) throws IOException, NoSuchAlgorithmException {
         self = new NodeInfo(InetAddress.getLocalHost(), port);
         fingerTable = new FingerTable(self);
+//        initializeStabilization();
+
     }
 
     public CompletableFuture<NodeInfo> lookup(BigInteger key) throws IOException {
@@ -59,11 +62,6 @@ public class Node {
         return fingerTable.keyBelongsToSuccessor(key);
     }
 
-    public void forwardToNextBestNode(LookupOperation lookupOperation) throws IOException {
-        NodeInfo bestNextNode = fingerTable.getBestNextNode(lookupOperation.getKey());
-        Mailman.sendObject(bestNextNode, lookupOperation);
-    }
-
     /**
      * Add the node to the network and update its finger table.
      *
@@ -79,21 +77,6 @@ public class Node {
 
         boolean completedOK = !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
 
-        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(5);
-        executor.scheduleWithFixedDelay(() -> {
-            try {
-                CompletableFuture<Void> checkSuccessor = lookup(successorKey).thenAcceptAsync(successor ->
-                {
-                    NodeInfo currentSucessor = fingerTable.getSuccessor();
-                    if (currentSucessor.getId() != successor.getId()) {
-                        fingerTable.updateSuccessor(0, successor);
-                    }
-                    fillFingerTable();
-                }, threadPool);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }, 5, 5, TimeUnit.SECONDS);
 
         if (completedOK)
             fillFingerTable();
@@ -105,19 +88,39 @@ public class Node {
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
         result.complete(targetNode);
-        fingerTable.updateFingerTable(key, targetNode);
     }
 
     public void setDHT(DistributedHashTable<?> dht) {
         this.dht = dht;
     }
 
-    public void waitForANodeToJoin() throws ExecutionException, InterruptedException {
-        fingerTable.waitForTableInitialization();
-        fillFingerTable();
-    }
-
     private void fillFingerTable() {
         fingerTable.fill(this);
+    }
+
+    public NodeInfo getNextBestNode(BigInteger key) {
+        return fingerTable.getBestNextNode(key);
+    }
+
+    public void initializeStabilization(){
+/*        BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
+        stabilizationExecutor.scheduleWithFixedDelay(() -> {
+            System.out.println(System.currentTimeMillis() + " Checking up on the B A C K U P B O Y E S");
+            try {
+                CompletableFuture<Void> checkSuccessor = lookup(successorKey).thenAcceptAsync(successor ->
+                {
+                    NodeInfo currentSucessor = fingerTable.getSuccessor();
+                    if (currentSucessor.getId() != successor.getId()) {
+                        fingerTable.updateSuccessor(0, successor);
+                    }
+                    fillFingerTable();
+                }, threadPool);
+
+                checkSuccessor.get();
+            } catch (IOException | InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+
+        }, 5, 5, TimeUnit.SECONDS);*/
     }
 }

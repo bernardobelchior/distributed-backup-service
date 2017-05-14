@@ -11,8 +11,8 @@ import java.math.BigInteger;
 public class LookupOperation implements Operation {
     private BigInteger key;
     private final NodeInfo origin;
-    private final NodeInfo lastNode;
-    private boolean lastHop = false;
+    private NodeInfo lastNode;
+    private boolean reachedDestination = false;
 
     public LookupOperation(NodeInfo origin, BigInteger key) {
         this.origin = origin;
@@ -22,17 +22,16 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Is last hop? " + lastHop);
+        System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
+
+        FingerTable fingerTable = currentNode.getFingerTable();
+        fingerTable.updateFingerTable(origin);
+        fingerTable.updateFingerTable(lastNode);
+
+        lastNode = currentNode.getInfo();
 
         try {
-            FingerTable fingerTable = currentNode.getFingerTable();
-
-            if (lastHop || fingerTable.isEmpty()) {
-                if (fingerTable.isEmpty())
-                    fingerTable.updateSuccessor(0, lastNode);
-
-                fingerTable.setPredecessor(lastNode);
-
+            if (reachedDestination) {
                 LookupResultOperation lookupResultOperation = new LookupResultOperation(currentNode.getInfo(), key);
 
                 /* If the current node is the origin node, then just complete the lookup.
@@ -46,15 +45,22 @@ public class LookupOperation implements Operation {
             }
 
             if (currentNode.keyBelongsToSuccessor(key))
-                lastHop = true;
+                reachedDestination = true;
 
-            currentNode.forwardToNextBestNode(this);
+            NodeInfo nextBestNode = currentNode.getNextBestNode(key);
+
+            if (currentNode.getInfo().equals(nextBestNode))
+                new LookupResultOperation(currentNode.getInfo(), key).run(currentNode);
+            else
+                Mailman.sendObject(nextBestNode, this);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public BigInteger getKey() {
-        return key;
+    @Override
+    public String getKey() {
+        return key.toString();
     }
 }

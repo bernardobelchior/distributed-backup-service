@@ -11,7 +11,6 @@ import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.ExecutionException;
 
 public class Server {
 
@@ -71,19 +70,9 @@ public class Server {
                 e.printStackTrace();
             }
         } else {
-            try {
-                System.out.println("Waiting for a node to join...");
-                node.waitForANodeToJoin();
-            } catch (ExecutionException | InterruptedException e) {
-                e.printStackTrace();
-                System.err.println("Error waiting for a node to join. Exiting...");
-                return;
-            }
-
             /* TODO: Start the stabilization process.
             * I should do it because I am the first and this ensures that the stabilization process only runs once. */
         }
-
         System.out.println("Joined the network successfully.");
     }
 }
