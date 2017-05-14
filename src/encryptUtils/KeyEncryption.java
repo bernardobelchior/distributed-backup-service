@@ -29,16 +29,47 @@ public class KeyEncryption{
 		
 		File privKeyFile = new File(privateKeyDir);
 		
+		if(!pubKeyFile.exists()){
 		pubKeyFile.createNewFile();
 		ObjectOutputStream pubKeyOutputStream = new ObjectOutPutStream(new FileOutputStream(pubKeyFile));
 		pubKeyOutputStream.writeObject(kPair.getPublic());
-		pubKeyOutputStream.close;
+		pubKeyOutputStream.close;}
 		
+		if(!privKeyFile.exists()){
 		privKeyFile.createNewFile();
 		ObjectOutputStream privKeyOutputStream = new ObjectOutPutStream(new FileOutputStream(privKeyFile));
 		privKeyOutputStream.writeObject(kPair.getPrivate());
-		privKeyOutputStream.close;
+		privKeyOutputStream.close;}
 		
 	}
+
+
+	public static byte[] encryptMessage(String text, PrivateKey privKey){
+		byte[] cipherText = null;
+		try{
+		final Cipher cipher  = Cipher.getInstance(ALGORITHM);
+		cipher.init(Cipher.DECRYPT_MODE, privKey);
+		cipherText = cipher.doFinal(text.getytes()))
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return cipherText;
+	}
+	
+	public static String decrypt(byte[] text, PrivateKey key) {
+		    byte[] dectyptedText = null;
+		    try {
+		       final Cipher cipher = Cipher.getInstance(ALGORITHM);
+
+		       cipher.init(Cipher.DECRYPT_MODE, key);
+		      dectyptedText = cipher.doFinal(text);
+
+		    } catch (Exception ex) {
+		      ex.printStackTrace();
+		    }
+
+		    return new String(dectyptedText);
+		  }
+	
 	
 }
