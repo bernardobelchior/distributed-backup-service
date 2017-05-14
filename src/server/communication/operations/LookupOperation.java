@@ -22,7 +22,7 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Looking up key " + key + ". ");
+        System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId());
 
         try {
             FingerTable fingerTable = currentNode.getFingerTable();
@@ -33,29 +33,21 @@ public class LookupOperation implements Operation {
 
                 fingerTable.setPredecessor(lastNode);
 
-
-                System.out.print("I own it! ");
                 LookupResultOperation lookupResultOperation = new LookupResultOperation(currentNode.getInfo(), key);
 
                 /* If the key should be stored in the origin node, then just complete the lookup.
                  * Otherwise, send it to the node who requested the lookup. */
-                if (currentNode.getInfo().equals(origin)) {
-                    System.out.println("And I requested it, so it's ok.");
+                if (currentNode.getInfo().equals(origin))
                     lookupResultOperation.run(currentNode);
-                } else {
-                    System.out.println("Sending my info to the origin...");
+                else
                     Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
-                }
+
 
                 return;
             }
 
-            if (currentNode.keyBelongsToSuccessor(key)) {
+            if (currentNode.keyBelongsToSuccessor(key))
                 lastHop = true;
-                System.out.println("It should belong to my successor, forwarding to him.");
-            } else {
-                System.out.println("It does not belong to my successor. Forwarding to next best node...");
-            }
 
             currentNode.forwardToNextBestNode(this);
         } catch (IOException e) {

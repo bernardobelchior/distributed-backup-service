@@ -63,10 +63,6 @@ public class Node {
 
     public void forwardToNextBestNode(LookupOperation lookupOperation) throws IOException {
         NodeInfo bestNextNode = fingerTable.getBestNextNode(lookupOperation.getKey());
-
-        System.out.print("Forwarding to: ");
-        System.out.println(bestNextNode == null ? "null" : bestNextNode);
-
         Mailman.sendObject(bestNextNode, lookupOperation);
     }
 
