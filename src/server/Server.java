@@ -42,6 +42,12 @@ public class Server {
             e.printStackTrace();
         }
 
+        try {
+            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+
         /* Joining an existing network */
         if (args.length == 4) {
             InetAddress address;
@@ -56,6 +62,7 @@ public class Server {
             int bootstrapPort = Integer.parseUnsignedInt(args[3]);
 
             try {
+                System.out.println("Starting the process of joining the network...");
                 if (!node.bootstrap(new NodeInfo(address, bootstrapPort))) {
                     System.err.println("Node bootstrapping failed. Exiting..");
                     return;
@@ -65,6 +72,7 @@ public class Server {
             }
         } else {
             try {
+                System.out.println("Waiting for a node to join...");
                 node.waitForANodeToJoin();
             } catch (ExecutionException | InterruptedException e) {
                 e.printStackTrace();
@@ -74,12 +82,6 @@ public class Server {
 
             /* TODO: Start the stabilization process.
             * I should do it because I am the first and this ensures that the stabilization process only runs once. */
-        }
-
-        try {
-            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
         }
     }
 }
