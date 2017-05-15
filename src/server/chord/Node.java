@@ -2,6 +2,7 @@ package server.chord;
 
 import server.communication.Mailman;
 import server.communication.operations.LookupOperation;
+import server.communication.operations.RequestPredecessorOperation;
 import server.dht.DistributedHashTable;
 
 import java.io.IOException;
@@ -17,6 +18,7 @@ public class Node {
     private final FingerTable fingerTable;
     private DistributedHashTable<?> dht;
     private final ConcurrentHashMap<BigInteger, CompletableFuture<NodeInfo>> ongoingLookups = new ConcurrentHashMap<>();
+    private CompletableFuture<NodeInfo> predecessorLookup;
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
 
     /**
@@ -25,6 +27,7 @@ public class Node {
     public Node(int port) throws IOException, NoSuchAlgorithmException {
         self = new NodeInfo(InetAddress.getLocalHost(), port);
         fingerTable = new FingerTable(self);
+        predecessorLookup = null;
     }
 
     public CompletableFuture<NodeInfo> lookup(BigInteger key) throws IOException {
@@ -45,8 +48,21 @@ public class Node {
 
         Mailman.sendObject(nodeToLookup, new LookupOperation(self, key));
 
-        System.out.println("Exiting lookup");
         return lookupResult;
+    }
+
+    private CompletableFuture<NodeInfo> requestPredecessor(NodeInfo successor) throws IOException {
+
+        /* Check if the request is already being made */
+        CompletableFuture<NodeInfo> requestResult = predecessorLookup;
+        if (requestResult != null)
+            return requestResult;
+
+        requestResult = new CompletableFuture<>();
+        predecessorLookup = requestResult;
+        Mailman.sendObject(successor, new RequestPredecessorOperation(self));
+
+        return requestResult;
     }
 
     public NodeInfo getInfo() {
@@ -70,17 +86,30 @@ public class Node {
         BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
 
         CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
-                successor -> fingerTable.updateSuccessor(0, successor), threadPool);
+                successor -> fingerTable.updateSuccessor(0, successor));
 
         successorLookup.get();
 
+
         boolean completedOK = !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
 
-        if (completedOK)
-            fillFingerTable();
+        if (!completedOK)
+            return false;
+
+        fillFingerTable();
+
+        NodeInfo successor = fingerTable.getSuccessor();
+        CompletableFuture<Void> getPredecessor = requestPredecessor(successor).thenAcceptAsync(fingerTable::setPredecessor);
+
+        System.out.println("fetching predecessor");
+        getPredecessor.get();
+        System.out.println("fetched predecessor");
+
+        completedOK = !getPredecessor.isCompletedExceptionally() && !getPredecessor.isCancelled();
 
         return completedOK;
     }
+
 
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
@@ -111,5 +140,13 @@ public class Node {
         successorLookup.get();
 
         return !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
+    }
+
+    public void finishPredecessorRequest(NodeInfo predecessor) {
+        fingerTable.setPredecessor(predecessor);
+        System.out.println("Exiting");
+        if(predecessorLookup == null)
+            System.out.println("Null");
+        predecessorLookup.complete(predecessor);
     }
 }

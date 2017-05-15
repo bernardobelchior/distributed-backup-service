@@ -42,6 +42,7 @@ public class LookupOperation implements Operation {
 
                 fingerTable.updateFingerTable(origin);
                 fingerTable.updateFingerTable(senderNode);
+                System.out.println("Done");
                 return;
             }
 

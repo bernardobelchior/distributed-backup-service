@@ -144,15 +144,27 @@ public class FingerTable {
 
     public void updateFingerTable(NodeInfo node) {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
-        if (between(predecessor, self, keyEquivalent))
-            predecessor = node;
 
         for (int i = 0; i < successors.length; i++)
             if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), successors[i].getId(), keyEquivalent))
                 successors[i] = node;
     }
 
+    public void updatePredecessor(NodeInfo node){
+        BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
+        if (between(predecessor, self, keyEquivalent))
+            predecessor = node;
+    }
+
     public NodeInfo getSuccessor() {
         return successors[0];
+    }
+
+    public void setPredecessor(NodeInfo predecessor) {
+        this.predecessor = predecessor;
+    }
+
+    public NodeInfo getPredecessor() {
+        return predecessor;
     }
 }
