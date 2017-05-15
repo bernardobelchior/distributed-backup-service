@@ -2,6 +2,8 @@ package server.chord;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static server.Utils.addToNodeId;
 import static server.chord.Node.MAX_NODES;
@@ -23,6 +25,8 @@ public class FingerTable {
     }
 
     public boolean keyBelongsToSuccessor(BigInteger key) {
+        System.out.println("Checking if the key belongs to my successor");
+        System.out.format("Checking if %d is between %d and %d\n", key, self.getId(), successors[0].getId());
         return between(self, successors[0], key);
     }
 
@@ -35,7 +39,6 @@ public class FingerTable {
      * @return true if the key is between the other two, or equal to the upper key
      */
     public boolean between(NodeInfo lower, NodeInfo upper, BigInteger key) {
-        System.out.format("Checking if %d is between %d and %d\n",key,lower.getId(),upper.getId());
         return between(lower.getId(), upper.getId(), key);
     }
 
@@ -85,19 +88,10 @@ public class FingerTable {
      * @return {NodeInfo} of the best next node.
      */
     public NodeInfo getNextBestNode(BigInteger key) {
-        /*NodeInfo nextBestNode = successors[0];
-
-        for (int i = 1; i < successors.length; i++) {
-            System.out.println(i);
-            if (successors[i] == null || !between(nextBestNode, successors[i], key))
-                break;
-            else
-                nextBestNode = successors[i];
-        }*/
 
         int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
-        for (int i = successors.length - 1; i >= 0 ; i--) {
-            if(between(self.getId(),keyOwner,successors[i].getId()))
+        for (int i = successors.length - 1; i >= 0; i--) {
+            if (between(self.getId(), keyOwner, successors[i].getId()))
                 return successors[i];
         }
 
@@ -128,7 +122,7 @@ public class FingerTable {
         return sb.toString();
     }
 
-    public void fill(Node currentNode) {
+    public void fill(Node currentNode) throws Exception {
         for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
             /* (NodeId + 2^i) mod MAX_NODES */
             BigInteger keyToLookup = BigInteger.valueOf(addToNodeId(self.getId(), (int) Math.pow(2, i)));
@@ -138,10 +132,12 @@ public class FingerTable {
                 * it means that successors[i] is still my successor. If it is not, look for the corresponding node. */
                 if (between(self, successors[0], keyToLookup))
                     successors[i] = successors[0];
-                else
-                    currentNode.lookup(keyToLookup);
-            } catch (IOException e) {
-                e.printStackTrace();
+                else {
+                    if (!currentNode.lookupSuccessor(i, keyToLookup))
+                        throw new Exception("Could not find successor " + i);
+                }
+            } catch (IOException | InterruptedException | ExecutionException e) {
+                throw new Exception("Could not find successor " + i);
             }
         }
     }

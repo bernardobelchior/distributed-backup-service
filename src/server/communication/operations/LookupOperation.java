@@ -25,9 +25,8 @@ public class LookupOperation implements Operation {
         System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
 
         FingerTable fingerTable = currentNode.getFingerTable();
-        fingerTable.updateFingerTable(origin);
-        fingerTable.updateFingerTable(lastNode);
 
+        NodeInfo senderNode = lastNode;
         lastNode = currentNode.getInfo();
 
         try {
@@ -41,23 +40,30 @@ public class LookupOperation implements Operation {
                 } else
                     Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
 
+                fingerTable.updateFingerTable(origin);
+                fingerTable.updateFingerTable(senderNode);
                 return;
             }
 
-            System.out.println("\nChecking if key belongs to successor");
-            if (currentNode.keyBelongsToSuccessor(key))
+            if (currentNode.keyBelongsToSuccessor(key)) {
                 reachedDestination = true;
+            }
 
             NodeInfo nextBestNode = currentNode.getNextBestNode(key);
 
             if (currentNode.getInfo().equals(nextBestNode))
                 nextBestNode = currentNode.getSuccessor();
 
+            System.out.format("Redirecting message to next best node, with ID %d\n", nextBestNode.getId());
+
             Mailman.sendObject(nextBestNode, this);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        fingerTable.updateFingerTable(origin);
+        fingerTable.updateFingerTable(senderNode);
     }
 
     @Override

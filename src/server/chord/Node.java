@@ -66,7 +66,7 @@ public class Node {
      *
      * @param bootstrapperNode Node that will provide the information with which our finger table will be updated.
      */
-    public boolean bootstrap(NodeInfo bootstrapperNode) throws IOException, ExecutionException, InterruptedException {
+    public boolean bootstrap(NodeInfo bootstrapperNode) throws Exception {
         BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
 
         CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
@@ -91,7 +91,7 @@ public class Node {
         this.dht = dht;
     }
 
-    private void fillFingerTable() {
+    private void fillFingerTable() throws Exception {
         fingerTable.fill(this);
     }
 
@@ -102,5 +102,14 @@ public class Node {
 
     public NodeInfo getSuccessor() {
         return fingerTable.getSuccessor();
+    }
+
+    public boolean lookupSuccessor(int index, BigInteger keyToLookup) throws IOException, ExecutionException, InterruptedException {
+        CompletableFuture<Void> successorLookup = lookup(keyToLookup).thenAcceptAsync(
+                successor -> fingerTable.updateSuccessor(index, successor), threadPool);
+
+        successorLookup.get();
+
+        return !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
     }
 }
