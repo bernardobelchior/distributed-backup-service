@@ -35,8 +35,10 @@ public class FingerTable {
      * @return true if the key is between the other two, or equal to the upper key
      */
     public boolean between(NodeInfo lower, NodeInfo upper, BigInteger key) {
+        System.out.format("Checking if %d is between %d and %d\n",key,lower.getId(),upper.getId());
         return between(lower.getId(), upper.getId(), key);
     }
+
 
     /**
      * Check if a given key is between the lower and upper keys in the Chord circle
@@ -55,6 +57,22 @@ public class FingerTable {
             return keyOwner > lower || keyOwner <= upper;
     }
 
+    /**
+     * Check if a given key is between the lower and upper keys in the Chord circle
+     *
+     * @param lower
+     * @param upper
+     * @param key
+     * @return true if the key is between the other two, or equal to the upper key
+     */
+    public boolean between(int lower, int upper, int key) {
+
+        if (lower < upper)
+            return key > lower && key <= upper;
+        else
+            return key > lower || key <= upper;
+    }
+
     public void updateSuccessor(int index, NodeInfo successor) {
         System.out.println("Updated successors[" + index + "] with " + successor);
         successors[index] = successor;
@@ -66,17 +84,24 @@ public class FingerTable {
      * @param key the key being searched
      * @return {NodeInfo} of the best next node.
      */
-    public NodeInfo getBestNextNode(BigInteger key) {
-        NodeInfo bestNextNode = successors[0];
+    public NodeInfo getNextBestNode(BigInteger key) {
+        /*NodeInfo nextBestNode = successors[0];
 
         for (int i = 1; i < successors.length; i++) {
-            if (successors[i] == null || !between(bestNextNode, successors[i], key))
+            System.out.println(i);
+            if (successors[i] == null || !between(nextBestNode, successors[i], key))
                 break;
             else
-                bestNextNode = successors[i];
+                nextBestNode = successors[i];
+        }*/
+
+        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
+        for (int i = successors.length - 1; i >= 0 ; i--) {
+            if(between(self.getId(),keyOwner,successors[i].getId()))
+                return successors[i];
         }
 
-        return bestNextNode;
+        return self;
     }
 
     @Override

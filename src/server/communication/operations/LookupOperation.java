@@ -32,33 +32,28 @@ public class LookupOperation implements Operation {
 
         try {
             if (reachedDestination) {
-                System.out.println("Reached Destination");
                 LookupResultOperation lookupResultOperation = new LookupResultOperation(currentNode.getInfo(), key);
 
                 /* If the key belongs to the origin node, then just complete the lookup.
                  * Otherwise, send it to the node which requested the lookup. */
                 if (currentNode.getInfo().equals(origin)) {
-                    System.out.println("Key belongs to the origin node");
                     lookupResultOperation.run(currentNode);
-                }
-                else
+                } else
                     Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
 
                 return;
             }
 
+            System.out.println("\nChecking if key belongs to successor");
             if (currentNode.keyBelongsToSuccessor(key))
                 reachedDestination = true;
 
             NodeInfo nextBestNode = currentNode.getNextBestNode(key);
 
-            if (currentNode.getInfo().equals(nextBestNode)) {
+            if (currentNode.getInfo().equals(nextBestNode))
                 nextBestNode = currentNode.getSuccessor();
-                System.out.println("Reached desired destination");
-            }
-//                new LookupResultOperation(currentNode.getInfo(), key).run(currentNode);
-//            else
-                Mailman.sendObject(nextBestNode, this);
+
+            Mailman.sendObject(nextBestNode, this);
 
         } catch (IOException e) {
             e.printStackTrace();
