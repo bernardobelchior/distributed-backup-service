@@ -33,6 +33,9 @@ public class Node {
     }
 
     private CompletableFuture<NodeInfo> lookup(BigInteger key, NodeInfo nodeToLookup) throws IOException {
+        System.out.println("Entering lookup");
+
+        /* Check if requested lookup is already being done */
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
 
         if (lookupResult != null)
@@ -43,6 +46,7 @@ public class Node {
 
         Mailman.sendObject(nodeToLookup, new LookupOperation(self, key));
 
+        System.out.println("Exiting lookup");
         return lookupResult;
     }
 
@@ -69,7 +73,9 @@ public class Node {
         CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
                 successor -> fingerTable.updateSuccessor(0, successor), threadPool);
 
+        System.out.println("Bootstrapping commencing");
         successorLookup.get();
+        System.out.println("Bootstrapping alright");
 
         boolean completedOK = !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
 
@@ -80,8 +86,13 @@ public class Node {
     }
 
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
+        System.out.println("Finishing lookup");
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
+        if(result == null)
+            System.out.println("Null");
+        System.out.println("Key removed");
         result.complete(targetNode);
+        System.out.println("Lookup done");
     }
 
     public void setDHT(DistributedHashTable<?> dht) {
@@ -94,5 +105,10 @@ public class Node {
 
     public NodeInfo getNextBestNode(BigInteger key) {
         return fingerTable.getBestNextNode(key);
+    }
+
+
+    public NodeInfo getSuccessor() {
+        return fingerTable.getSuccessor();
     }
 }

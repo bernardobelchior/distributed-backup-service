@@ -130,4 +130,8 @@ public class FingerTable {
             if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), successors[i].getId(), keyEquivalent))
                 successors[i] = node;
     }
+
+    public NodeInfo getSuccessor() {
+        return successors[0];
+    }
 }
