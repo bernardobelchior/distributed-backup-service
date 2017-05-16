@@ -25,9 +25,8 @@ public class LookupOperation implements Operation {
         System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
 
         FingerTable fingerTable = currentNode.getFingerTable();
-        fingerTable.updateFingerTable(origin);
-        fingerTable.updateFingerTable(lastNode);
 
+        NodeInfo senderNode = lastNode;
         lastNode = currentNode.getInfo();
 
         try {
@@ -36,27 +35,36 @@ public class LookupOperation implements Operation {
 
                 /* If the current node is the origin node, then just complete the lookup.
                  * Otherwise, send it to the node which requested the lookup. */
-                if (currentNode.getInfo().equals(origin))
+                if (currentNode.getInfo().equals(origin)) {
                     lookupResultOperation.run(currentNode);
-                else
+                } else
                     Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
 
+                fingerTable.updateFingerTable(origin);
+                fingerTable.updateFingerTable(senderNode);
+                System.out.println("Done");
                 return;
             }
 
-            if (currentNode.keyBelongsToSuccessor(key))
+            if (currentNode.keyBelongsToSuccessor(key)) {
                 reachedDestination = true;
+            }
 
             NodeInfo nextBestNode = currentNode.getNextBestNode(key);
 
             if (currentNode.getInfo().equals(nextBestNode))
-                new LookupResultOperation(currentNode.getInfo(), key).run(currentNode);
-            else
-                Mailman.sendObject(nextBestNode, this);
+                nextBestNode = currentNode.getSuccessor();
+
+            System.out.format("Redirecting message to next best node, with ID %d\n", nextBestNode.getId());
+
+            Mailman.sendObject(nextBestNode, this);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        fingerTable.updateFingerTable(origin);
+        fingerTable.updateFingerTable(senderNode);
     }
 
     @Override

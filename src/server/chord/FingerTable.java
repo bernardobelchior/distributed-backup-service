@@ -2,6 +2,8 @@ package server.chord;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static server.Utils.addToNodeId;
 import static server.chord.Node.MAX_NODES;
@@ -23,6 +25,8 @@ public class FingerTable {
     }
 
     public boolean keyBelongsToSuccessor(BigInteger key) {
+        System.out.println("Checking if the key belongs to my successor");
+        System.out.format("Checking if %d is between %d and %d\n", key, self.getId(), successors[0].getId());
         return between(self, successors[0], key);
     }
 
@@ -37,6 +41,7 @@ public class FingerTable {
     public boolean between(NodeInfo lower, NodeInfo upper, BigInteger key) {
         return between(lower.getId(), upper.getId(), key);
     }
+
 
     /**
      * Check if a given key is between the lower and upper keys in the Chord circle
@@ -55,6 +60,22 @@ public class FingerTable {
             return keyOwner > lower || keyOwner <= upper;
     }
 
+    /**
+     * Check if a given key is between the lower and upper keys in the Chord circle
+     *
+     * @param lower
+     * @param upper
+     * @param key
+     * @return true if the key is between the other two, or equal to the upper key
+     */
+    public boolean between(int lower, int upper, int key) {
+
+        if (lower < upper)
+            return key > lower && key <= upper;
+        else
+            return key > lower || key <= upper;
+    }
+
     public void updateSuccessor(int index, NodeInfo successor) {
         System.out.println("Updated successors[" + index + "] with " + successor);
         successors[index] = successor;
@@ -66,17 +87,15 @@ public class FingerTable {
      * @param key the key being searched
      * @return {NodeInfo} of the best next node.
      */
-    public NodeInfo getBestNextNode(BigInteger key) {
-        NodeInfo bestNextNode = successors[0];
+    public NodeInfo getNextBestNode(BigInteger key) {
 
-        for (int i = 1; i < successors.length; i++) {
-            if (successors[i] == null || !between(bestNextNode, successors[i], key))
-                break;
-            else
-                bestNextNode = successors[i];
+        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
+        for (int i = successors.length - 1; i >= 0; i--) {
+            if (between(self.getId(), keyOwner, successors[i].getId()))
+                return successors[i];
         }
 
-        return bestNextNode;
+        return self;
     }
 
     @Override
@@ -103,7 +122,7 @@ public class FingerTable {
         return sb.toString();
     }
 
-    public void fill(Node currentNode) {
+    public void fill(Node currentNode) throws Exception {
         for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
             /* (NodeId + 2^i) mod MAX_NODES */
             BigInteger keyToLookup = BigInteger.valueOf(addToNodeId(self.getId(), (int) Math.pow(2, i)));
@@ -113,25 +132,39 @@ public class FingerTable {
                 * it means that successors[i] is still my successor. If it is not, look for the corresponding node. */
                 if (between(self, successors[0], keyToLookup))
                     successors[i] = successors[0];
-                else
-                    currentNode.lookup(keyToLookup);
-            } catch (IOException e) {
-                e.printStackTrace();
+                else {
+                    if (!currentNode.lookupSuccessor(i, keyToLookup))
+                        throw new Exception("Could not find successor " + i);
+                }
+            } catch (IOException | InterruptedException | ExecutionException e) {
+                throw new Exception("Could not find successor " + i);
             }
         }
     }
 
-    public NodeInfo getSuccessor(){
-        return successors[0];
-    }
-
     public void updateFingerTable(NodeInfo node) {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
-        if (between(predecessor, self, keyEquivalent))
-            predecessor = node;
 
         for (int i = 0; i < successors.length; i++)
             if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), successors[i].getId(), keyEquivalent))
                 successors[i] = node;
+    }
+
+    public void updatePredecessor(NodeInfo node){
+        BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
+        if (between(predecessor, self, keyEquivalent))
+            predecessor = node;
+    }
+
+    public NodeInfo getSuccessor() {
+        return successors[0];
+    }
+
+    public void setPredecessor(NodeInfo predecessor) {
+        this.predecessor = predecessor;
+    }
+
+    public NodeInfo getPredecessor() {
+        return predecessor;
     }
 }
