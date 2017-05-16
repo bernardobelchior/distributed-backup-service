@@ -27,6 +27,7 @@ public class FingerTable {
     /**
      * Check if a given key belongs to this node's successor, that is,
      * if the key is between this node and the successor
+     *
      * @param key key being checked
      * @return true if the key belongs to the node's successor
      */
@@ -45,7 +46,6 @@ public class FingerTable {
     public boolean between(NodeInfo lower, NodeInfo upper, BigInteger key) {
         return between(lower.getId(), upper.getId(), key);
     }
-
 
     /**
      * Check if a given key is between the lower and upper keys in the Chord circle
@@ -72,7 +72,7 @@ public class FingerTable {
      * @param key
      * @return true if the key is between the other two, or equal to the upper key
      */
-    public boolean between(int lower, int upper, int key) {
+    public static boolean between(int lower, int upper, int key) {
 
         if (lower < upper)
             return key > lower && key <= upper;
@@ -99,7 +99,7 @@ public class FingerTable {
 
         int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
         for (int i = successors.length - 1; i >= 0; i--) {
-            if (between(self.getId(), keyOwner, successors[i].getId()))
+            if (between(self.getId(), keyOwner, successors[i].getId()) && !successors[i].equals(self))
                 return successors[i];
         }
 
@@ -132,6 +132,7 @@ public class FingerTable {
 
     /**
      * Fills the node's finger table
+     *
      * @param currentNode node the finger table belongs to
      * @throws Exception
      */
@@ -151,21 +152,23 @@ public class FingerTable {
                 else {
                     int index = i;
                     CompletableFuture<Void> fingerLookup = currentNode.lookup(keyToLookup).thenAcceptAsync(
-                            finger -> setFinger(index,finger),
+                            finger -> setFinger(index, finger),
                             currentNode.getThreadPool());
-t
+
                     fingerLookup.get();
-                    if(fingerLookup.isCancelled() || fingerLookup.isCompletedExceptionally())
+
+                    if (fingerLookup.isCancelled() || fingerLookup.isCompletedExceptionally())
                         throw new Exception("Could not find finger" + i);
                 }
             } catch (IOException | InterruptedException | ExecutionException e) {
-                throw new Exception("Could not find successor " + i);
+                throw new Exception("Could not find finger " + i);
             }
         }
     }
 
     /**
      * Check if a given node should replace any of the finger table's nodes
+     *
      * @param node node being compared
      */
     public void updateFingerTable(NodeInfo node) {
@@ -178,15 +181,16 @@ t
 
     /**
      * Get this node's successor
+     *
      * @return NodeInfo for the successor
      */
     public NodeInfo getSuccessor() {
         return successors[0];
     }
 
-
     /**
      * Get this node's predecessor
+     *
      * @return NodeInfo for the predecessor
      */
     public NodeInfo getPredecessor() {
@@ -196,6 +200,7 @@ t
     /**
      * Set the node's predecessor without checking
      * Use only if needed. See updatePredecessor()
+     *
      * @param predecessor new predecessor
      */
     public void setPredecessor(NodeInfo predecessor) {
@@ -204,12 +209,24 @@ t
 
     /**
      * Check if a given node should be this node's predecessor
+     *
      * @param node node being compared
      */
-    public void updatePredecessor(NodeInfo node) {
-        BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
-        if (between(predecessor, self, keyEquivalent))
+    public boolean updatePredecessor(NodeInfo node) {
+        if(node.equals(self) || node == null)
+            return false;
+
+        if(predecessor == null) {
             predecessor = node;
+            return true;
+        }
+
+        BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
+        if (between(predecessor, self, keyEquivalent)) {
+            predecessor = node;
+            return true;
+        }
+        return false;
     }
 
 }
