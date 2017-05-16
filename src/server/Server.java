@@ -74,5 +74,6 @@ public class Server {
             * I should do it because I am the first and this ensures that the stabilization process only runs once. */
         }
         System.out.println("Joined the network successfully.");
+        node.initializeStabilization();
     }
 }
