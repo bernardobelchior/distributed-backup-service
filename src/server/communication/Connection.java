@@ -11,10 +11,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 public class Connection {
-    private SSLSocket socket;
-    private ObjectOutputStream outputStream;
-    private ObjectInputStream inputStream;
-    private NodeInfo nodeInfo;
+    private final SSLSocket socket;
+    private final ObjectOutputStream outputStream;
+    private final ObjectInputStream inputStream;
+    private final NodeInfo nodeInfo;
 
     Connection(NodeInfo nodeInfo) throws IOException {
         this(
@@ -35,8 +35,9 @@ public class Connection {
     }
 
     public void sendObject(Object object) throws IOException {
-        outputStream.writeObject(object);
-        outputStream.flush();
+        synchronized (outputStream) {
+            outputStream.writeObject(object);
+        }
     }
 
     public void listen(Node currentNode) {
@@ -46,6 +47,7 @@ public class Connection {
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
+                e.printStackTrace();
                 closeConnection();
                 return;
             }

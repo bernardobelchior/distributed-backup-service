@@ -6,4 +6,6 @@ import java.io.Serializable;
 
 public interface Operation<T> extends Serializable {
     void run(Node currentNode);
+
+    String getKey();
 }

@@ -20,12 +20,9 @@ public class Server {
                     "Last two arguments are optional. If not provided, the program will assume this is the first node.");
             return;
         }
-
-
         int port = Integer.parseUnsignedInt(args[1]);
 
         Node node;
-
         try {
             node = new Node(port);
         } catch (IOException | NoSuchAlgorithmException e) {
@@ -37,6 +34,18 @@ public class Server {
         DistributedHashTable<byte[]> dht = new DistributedHashTable<>(node);
         node.setDHT(dht);
         Mailman.init(node, port);
+
+        try {
+            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(dht));
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
 
         /* Joining an existing network */
         if (args.length == 4) {
@@ -52,6 +61,7 @@ public class Server {
             int bootstrapPort = Integer.parseUnsignedInt(args[3]);
 
             try {
+                System.out.println("Starting the process of joining the network...");
                 if (!node.bootstrap(new NodeInfo(address, bootstrapPort))) {
                     System.err.println("Node bootstrapping failed. Exiting..");
                     return;
@@ -63,17 +73,7 @@ public class Server {
             /* TODO: Start the stabilization process.
             * I should do it because I am the first and this ensures that the stabilization process only runs once. */
         }
-
-        try {
-            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(dht));
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-
-        try {
-            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
+        System.out.println("Joined the network successfully.");
+        node.initializeStabilization();
     }
 }

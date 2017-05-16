@@ -11,8 +11,8 @@ import java.math.BigInteger;
 public class LookupOperation implements Operation {
     private BigInteger key;
     private final NodeInfo origin;
-    private final NodeInfo lastNode;
-    private boolean lastHop = false;
+    private NodeInfo lastNode;
+    private boolean reachedDestination = false;
 
     public LookupOperation(NodeInfo origin, BigInteger key) {
         this.origin = origin;
@@ -22,36 +22,53 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.print("Looking up key " + key + ". ");
+        System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
+
+        FingerTable fingerTable = currentNode.getFingerTable();
+
+        NodeInfo senderNode = lastNode;
+        lastNode = currentNode.getInfo();
 
         try {
-            FingerTable fingerTable = currentNode.getFingerTable();
+            if (reachedDestination) {
+                LookupResultOperation lookupResultOperation = new LookupResultOperation(currentNode.getInfo(), key);
 
-            if (lastHop || fingerTable.isEmpty()) {
-                fingerTable.setPredecessor(lastNode);
+                /* If the current node is the origin node, then just complete the lookup.
+                 * Otherwise, send it to the node which requested the lookup. */
+                if (currentNode.getInfo().equals(origin)) {
+                    lookupResultOperation.run(currentNode);
+                } else
+                    Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
 
-                if (fingerTable.isEmpty())
-                    fingerTable.updateSuccessor(0, lastNode);
-
-                System.out.println("I own it! Sending my info...");
-                Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
+                fingerTable.updateFingerTable(origin);
+                fingerTable.updateFingerTable(senderNode);
+                System.out.println("Done");
                 return;
             }
 
             if (currentNode.keyBelongsToSuccessor(key)) {
-                lastHop = true;
-                System.out.println("It should belong to my successor, forwarding to him.");
-            } else {
-                System.out.println("It does not belong to my successor. Forwarding to next best node...");
+                reachedDestination = true;
             }
 
-            currentNode.forwardToNextBestNode(this);
+            NodeInfo nextBestNode = currentNode.getNextBestNode(key);
+
+            if (currentNode.getInfo().equals(nextBestNode))
+                nextBestNode = currentNode.getSuccessor();
+
+            System.out.format("Redirecting message to next best node, with ID %d\n", nextBestNode.getId());
+
+            Mailman.sendObject(nextBestNode, this);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        fingerTable.updateFingerTable(origin);
+        fingerTable.updateFingerTable(senderNode);
     }
 
-    public BigInteger getKey() {
-        return key;
+    @Override
+    public String getKey() {
+        return key.toString();
     }
 }
