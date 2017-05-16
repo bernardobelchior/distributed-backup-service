@@ -100,7 +100,7 @@ public class FingerTable {
 
         int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
         for (int i = successors.length - 1; i >= 0; i--) {
-            if (between(self.getId(), keyOwner, successors[i].getId()))
+            if (between(self.getId(), keyOwner, successors[i].getId()) && !successors[i].equals(self))
                 return successors[i];
         }
 
@@ -148,9 +148,9 @@ public class FingerTable {
                  * If the key corresponding to the ith row of the finger table stands between me and my successor,
                  * it means that successors[i] is still my successor. If it is not, look for the corresponding node.
                  */
-                if (between(self, successors[0], keyToLookup))
+                if (between(self, successors[0], keyToLookup)) {
                     successors[i] = successors[0];
-                else {
+                } else {
                     int index = i;
                     CompletableFuture<Void> fingerLookup = currentNode.lookup(keyToLookup).thenAcceptAsync(
                             finger -> setFinger(index, finger),
@@ -174,9 +174,13 @@ public class FingerTable {
     public void updateFingerTable(NodeInfo node) {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
 
-        for (int i = 0; i < successors.length; i++)
-            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), successors[i].getId(), keyEquivalent))
+        for (int i = 0; i < successors.length; i++) {
+            int id = addToNodeId(self.getId(), (int) Math.pow(2, i) - 1);
+            if (between(id, successors[i].getId(), keyEquivalent)) {
+                System.out.format("%d is between %d and %d\nChanging finger table entry %d to %d\n", keyEquivalent, id, successors[i].getId(), i, keyEquivalent);
                 successors[i] = node;
+            }
+        }
     }
 
     /**
