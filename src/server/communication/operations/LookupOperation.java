@@ -33,7 +33,7 @@ public class LookupOperation implements Operation {
             if (reachedDestination) {
                 LookupResultOperation lookupResultOperation = new LookupResultOperation(currentNode.getInfo(), key);
 
-                /* If the key belongs to the origin node, then just complete the lookup.
+                /* If the current node is the origin node, then just complete the lookup.
                  * Otherwise, send it to the node which requested the lookup. */
                 if (currentNode.getInfo().equals(origin)) {
                     lookupResultOperation.run(currentNode);

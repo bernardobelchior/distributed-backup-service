@@ -20,6 +20,7 @@ public class Node {
     private final ConcurrentHashMap<BigInteger, CompletableFuture<NodeInfo>> ongoingLookups = new ConcurrentHashMap<>();
     private CompletableFuture<NodeInfo> predecessorLookup;
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
+    private final ScheduledThreadPoolExecutor stabilizationExecutor = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(5);
 
     /**
      * @param port Port to start the service in
@@ -32,10 +33,17 @@ public class Node {
 
     public CompletableFuture<NodeInfo> lookup(BigInteger key) throws IOException {
         NodeInfo bestNextNode = fingerTable.getNextBestNode(key);
-        return lookup(key, bestNextNode);
+        return lookupFrom(key, bestNextNode);
     }
 
-    private CompletableFuture<NodeInfo> lookup(BigInteger key, NodeInfo nodeToLookup) throws IOException {
+    /**
+     * Search for a key, starting from a specific node
+     * @param key
+     * @param nodeToLookup
+     * @return
+     * @throws IOException
+     */
+    private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) throws IOException {
 
         /* Check if requested lookup is already being done */
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
@@ -83,37 +91,37 @@ public class Node {
      * @param bootstrapperNode Node that will provide the information with which our finger table will be updated.
      */
     public boolean bootstrap(NodeInfo bootstrapperNode) throws Exception {
+
+        /* Get the node's successor, simple lookup on the DHT */
+
         BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
 
-        CompletableFuture<Void> successorLookup = lookup(successorKey, bootstrapperNode).thenAcceptAsync(
-                successor -> fingerTable.updateSuccessor(0, successor));
+        CompletableFuture<Void> successorLookup = lookupFrom(successorKey, bootstrapperNode).thenAcceptAsync(
+                successor -> fingerTable.setFinger(0, successor), threadPool);
 
         successorLookup.get();
-
 
         boolean completedOK = !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
 
         if (!completedOK)
             return false;
 
+        /*
+         * The node now has knowledge of its successor,
+         * now the finger table will be filled using the successor
+         */
+
         fillFingerTable();
 
         NodeInfo successor = fingerTable.getSuccessor();
-        CompletableFuture<Void> getPredecessor = requestPredecessor(successor).thenAcceptAsync(fingerTable::setPredecessor);
 
-        System.out.println("fetching predecessor");
+        /* Get the successor's predecessor, which will be the new node's predecessor */
+
+        CompletableFuture<Void> getPredecessor = requestPredecessor(successor).thenAcceptAsync(fingerTable::setPredecessor, threadPool);
         getPredecessor.get();
-        System.out.println("fetched predecessor");
-
         completedOK = !getPredecessor.isCompletedExceptionally() && !getPredecessor.isCancelled();
 
         return completedOK;
-    }
-
-
-    public void finishedLookup(BigInteger key, NodeInfo targetNode) {
-        CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
-        result.complete(targetNode);
     }
 
     public void setDHT(DistributedHashTable<?> dht) {
@@ -124,29 +132,52 @@ public class Node {
         fingerTable.fill(this);
     }
 
+    /**
+     * Search the finger table for the next best node
+     * @param key key that is being searched
+     * @return NodeInfo for the closest preceding node to the searched key
+     */
     public NodeInfo getNextBestNode(BigInteger key) {
         return fingerTable.getNextBestNode(key);
     }
 
 
+    /**
+     * Get the node's successor (finger table's first entry)
+     * @return NodeInfo for the node's successor
+     */
     public NodeInfo getSuccessor() {
         return fingerTable.getSuccessor();
     }
 
-    public boolean lookupSuccessor(int index, BigInteger keyToLookup) throws IOException, ExecutionException, InterruptedException {
-        CompletableFuture<Void> successorLookup = lookup(keyToLookup).thenAcceptAsync(
-                successor -> fingerTable.updateSuccessor(index, successor), threadPool);
 
-        successorLookup.get();
 
-        return !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
+    /**
+     * Called by a LookupResultOperation, signals the lookup for the key is finished
+     * @param key key that was searched
+     * @param targetNode node responsible for the key
+     */
+    public void finishedLookup(BigInteger key, NodeInfo targetNode) {
+        CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
+        result.complete(targetNode);
     }
 
     public void finishPredecessorRequest(NodeInfo predecessor) {
         fingerTable.setPredecessor(predecessor);
-        System.out.println("Exiting");
-        if(predecessorLookup == null)
-            System.out.println("Null");
         predecessorLookup.complete(predecessor);
+    }
+
+    public void initializeStabilization() {
+        stabilizationExecutor.scheduleWithFixedDelay(() -> {
+            stabilizationProtocol();
+        }, 5, 5, TimeUnit.SECONDS);
+    }
+
+    public void stabilizationProtocol() {
+
+    }
+
+    public ExecutorService getThreadPool() {
+        return threadPool;
     }
 }
