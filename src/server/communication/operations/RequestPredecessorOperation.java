@@ -6,9 +6,6 @@ import server.communication.Mailman;
 
 import java.io.IOException;
 
-/**
- * Created by epassos on 5/15/17.
- */
 public class RequestPredecessorOperation implements Operation {
     private NodeInfo origin;
 
@@ -29,8 +26,4 @@ public class RequestPredecessorOperation implements Operation {
         }
     }
 
-    @Override
-    public String getKey() {
-        return null;
-    }
 }

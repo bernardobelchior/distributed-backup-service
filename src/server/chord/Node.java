@@ -2,8 +2,9 @@ package server.chord;
 
 import server.communication.Mailman;
 import server.communication.operations.LookupOperation;
+import server.communication.operations.PutOperation;
+import server.communication.operations.ReplicationOperation;
 import server.communication.operations.RequestPredecessorOperation;
-import server.dht.DistributedHashTable;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -11,13 +12,15 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
-public class Node {
+public class Node<T> {
     public static final int MAX_NODES = 128;
+    public static final int REPLICATION_DEGREE = 2;
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
-    private DistributedHashTable<?> dht;
+    private final DistributedHashTable<T> dht;
     private final ConcurrentHashMap<BigInteger, CompletableFuture<NodeInfo>> ongoingLookups = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
     private CompletableFuture<NodeInfo> predecessorLookup;
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledThreadPoolExecutor stabilizationExecutor = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(5);
@@ -29,6 +32,7 @@ public class Node {
         self = new NodeInfo(InetAddress.getLocalHost(), port);
         fingerTable = new FingerTable(self);
         predecessorLookup = null;
+        dht = new DistributedHashTable<>(this);
     }
 
     public CompletableFuture<NodeInfo> lookup(BigInteger key) throws IOException {
@@ -38,13 +42,13 @@ public class Node {
 
     /**
      * Search for a key, starting from a specific node
+     *
      * @param key
      * @param nodeToLookup
      * @return
      * @throws IOException
      */
     private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) throws IOException {
-
         /* Check if requested lookup is already being done */
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
 
@@ -124,16 +128,13 @@ public class Node {
         return completedOK;
     }
 
-    public void setDHT(DistributedHashTable<?> dht) {
-        this.dht = dht;
-    }
-
     private void fillFingerTable() throws Exception {
         fingerTable.fill(this);
     }
 
     /**
      * Search the finger table for the next best node
+     *
      * @param key key that is being searched
      * @return NodeInfo for the closest preceding node to the searched key
      */
@@ -144,17 +145,17 @@ public class Node {
 
     /**
      * Get the node's successor (finger table's first entry)
+     *
      * @return NodeInfo for the node's successor
      */
     public NodeInfo getSuccessor() {
         return fingerTable.getSuccessor();
     }
 
-
-
     /**
      * Called by a LookupResultOperation, signals the lookup for the key is finished
-     * @param key key that was searched
+     *
+     * @param key        key that was searched
      * @param targetNode node responsible for the key
      */
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
@@ -168,9 +169,30 @@ public class Node {
     }
 
     public void initializeStabilization() {
-        stabilizationExecutor.scheduleWithFixedDelay(() -> {
-            stabilizationProtocol();
-        }, 5, 5, TimeUnit.SECONDS);
+        stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
+    }
+
+
+    public boolean store(BigInteger key, T value) {
+        if (!dht.storeLocally(key, value))
+            return false;
+
+        //FIXME: Use REPLICATION_DEGREE when list of R successors is done.
+        NodeInfo successor = fingerTable.getSuccessor();
+
+        if (successor.equals(self)) {
+            //FIXME:
+            System.err.println("I got no successor. What do I do?");
+        } else {
+            try {
+                Mailman.sendObject(successor, new ReplicationOperation<>(key, value));
+            } catch (IOException e) {
+                System.err.println("Could not start the replication operation.");
+                e.printStackTrace();
+            }
+        }
+
+        return true;
     }
 
     public void stabilizationProtocol() {
@@ -179,5 +201,42 @@ public class Node {
 
     public ExecutorService getThreadPool() {
         return threadPool;
+    }
+
+    public void backup(BigInteger key, T value) {
+        dht.backup(key, value);
+    }
+
+    public DistributedHashTable<T> getDistributedHashTable() {
+        return dht;
+    }
+
+    public CompletableFuture<Boolean> put(BigInteger key, T value) {
+        CompletableFuture<Boolean> put = new CompletableFuture<>();
+
+        if (ongoingInsertions.putIfAbsent(key, put) != null) {
+            put.completeExceptionally(new Exception("Put operation already ongoing."));
+            return put;
+        }
+
+        try {
+            NodeInfo destination = lookup(key).get();
+            PutOperation<T> putOperation = new PutOperation<>(self, key, value);
+
+            if (destination.equals(self))
+                putOperation.run(this);
+            else
+                Mailman.sendObject(self, putOperation);
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            System.err.println("Put operation failed. Please try again...");
+            e.printStackTrace();
+            put.completeExceptionally(e);
+        }
+
+        return put;
+    }
+
+    public void finishedPut(BigInteger key, boolean successful) {
+        ongoingInsertions.remove(key).complete(successful);
     }
 }

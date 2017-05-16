@@ -2,7 +2,6 @@ package server.communication;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
-import server.communication.operations.Operation;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -19,9 +18,9 @@ public class Mailman {
     private static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
     private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
 
-    private static Node currentNode;
+    private static Node<?> currentNode;
 
-    public static void init(Node currentNode, int port) {
+    public static void init(Node<?> currentNode, int port) {
         Mailman.currentNode = currentNode;
         new Thread(() -> listenForConnections(port)).start();
     }
@@ -42,8 +41,8 @@ public class Mailman {
             return;
         }
 
-        if(nodeInfo.getId() == currentNode.getInfo().getId())
-            System.err.println("WARNING! Trying to send object to self! Looking for object " + ((Operation) object).getKey());
+        if (nodeInfo.getId() == currentNode.getInfo().getId())
+            System.err.println("WARNING! Trying to send object to self!");
 
         getOrOpenConnection(nodeInfo).sendObject(object);
     }

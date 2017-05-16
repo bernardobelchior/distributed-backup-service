@@ -20,8 +20,4 @@ public class LookupResultOperation implements Operation {
         currentNode.finishedLookup(key, resultNode);
     }
 
-    @Override
-    public String getKey() {
-        return String.valueOf(key);
-    }
 }

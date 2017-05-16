@@ -66,9 +66,4 @@ public class LookupOperation implements Operation {
         fingerTable.updateFingerTable(origin);
         fingerTable.updateFingerTable(senderNode);
     }
-
-    @Override
-    public String getKey() {
-        return key.toString();
-    }
 }

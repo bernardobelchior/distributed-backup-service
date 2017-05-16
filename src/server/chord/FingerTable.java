@@ -98,7 +98,7 @@ public class FingerTable {
      */
     public NodeInfo getNextBestNode(BigInteger key) {
 
-        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
+        int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
         for (int i = successors.length - 1; i >= 0; i--) {
             if (between(self.getId(), keyOwner, successors[i].getId()) && !successors[i].equals(self))
                 return successors[i];
@@ -137,7 +137,7 @@ public class FingerTable {
      * @param currentNode node the finger table belongs to
      * @throws Exception
      */
-    public void fill(Node currentNode) throws Exception {
+    public void fill(Node<?> currentNode) throws Exception {
         for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
 
             /* (NodeId + 2^i) mod MAX_NODES */
@@ -152,13 +152,13 @@ public class FingerTable {
                     successors[i] = successors[0];
                 } else {
                     int index = i;
-                    CompletableFuture<Void> fingerLookup = currentNode.lookup(keyToLookup).thenAcceptAsync(
+                    CompletableFuture fingerLookup = currentNode.lookup(keyToLookup).thenAcceptAsync(
                             finger -> setFinger(index, finger),
                             currentNode.getThreadPool());
 
                     fingerLookup.get();
                     if (fingerLookup.isCancelled() || fingerLookup.isCompletedExceptionally())
-                        throw new Exception("Could not find finger" + i);
+                        throw new Exception("Could not find finger " + i);
                 }
             } catch (IOException | InterruptedException | ExecutionException e) {
                 throw new Exception("Could not find successor " + i);
