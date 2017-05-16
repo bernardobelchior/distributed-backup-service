@@ -19,6 +19,7 @@ public class KeyEncryption{
 	private static final String ALGORITHM = "RSA";
 	private static final int KEYLENGTH = 2048;
 	
+	
 	public static void genkeys(String publicKeyDir, String privateKeyDir){
 		final KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM);
 		keyGen.initialize(KEYLENGTH);
@@ -44,12 +45,12 @@ public class KeyEncryption{
 	}
 
 
-	public static byte[] encryptMessage(String text, PrivateKey privKey){
+	public static byte[] encryptMessage(byte[] text, PrivateKey privKey){
 		byte[] cipherText = null;
 		try{
 		final Cipher cipher  = Cipher.getInstance(ALGORITHM);
 		cipher.init(Cipher.DECRYPT_MODE, privKey);
-		cipherText = cipher.doFinal(text.getytes()))
+		cipherText = cipher.doFinal(text);
 		} catch(Exception e){
 			e.printStackTrace();
 		}
@@ -73,3 +74,16 @@ public class KeyEncryption{
 	
 	
 }
+
+	public static PublicKey obtainPublicKey(File path){
+		ObjectInputStream inputStream = null;
+		inputStream = new ObjectInputStream(new FileInputStream(path));
+		final PublicKey publicKey = (PublicKey) inputStream.readObject();
+		return publicKey;	  
+	}
+	
+	public static PrivateKey obtainPrivateKey(File path){
+		ObjectInputStream inputStream = null;
+		inputStream = new ObjectInputStream(new FileInputStream(path));
+		final PrivateKey privateKey = (PrivateKey) inputStream.readObject();
+	}

@@ -20,4 +20,21 @@ public class Utils {
     public static int addToNodeId(int nodeId, int value) {
         return Integer.remainderUnsigned(nodeId + value, MAX_NODES);
     }
+	
+	public byte[] turnToByteArray(Object object){
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		ObjectOutput out = null;
+		byte[] bArray = null;
+		try {
+			out = new ObjectOutputStream(bos);   
+			out.writeObject(object);
+			out.flush();
+			byte[] bArray = bos.toByteArray();
+			} finally {
+				try {
+					bos.close();
+				} catch (IOException ex) {}
+			}
+		return bArray;		
+	}
 }
