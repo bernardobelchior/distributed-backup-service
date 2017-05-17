@@ -1,10 +1,9 @@
 package server.communication.operations;
 
-import server.chord.FingerTable;
 import server.chord.Node;
 import server.chord.NodeInfo;
 
-import static server.Utils.between;
+import static server.utils.Utils.between;
 
 
 public class RequestPredecessorResultOperation implements Operation {

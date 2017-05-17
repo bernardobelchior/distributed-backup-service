@@ -47,7 +47,7 @@ public class Connection {
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("Connection to node " + nodeInfo.getId() + " closed.");
                 closeConnection();
                 return;
             }

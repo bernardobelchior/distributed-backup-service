@@ -1,16 +1,18 @@
 package server.chord;
 
-import java.io.EOFException;
+import server.utils.SynchronizedFixedLinkedList;
+
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.ListIterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static server.Utils.addToNodeId;
-import static server.Utils.between;
 import static server.chord.Node.MAX_NODES;
+import static server.utils.Utils.addToNodeId;
+import static server.utils.Utils.between;
 
 public class FingerTable {
     public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
@@ -18,14 +20,14 @@ public class FingerTable {
 
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
-    private final NodeInfo[] successors;
+    private final SynchronizedFixedLinkedList<NodeInfo> successors;
     private final NodeInfo self;
 
     public FingerTable(NodeInfo self) {
         this.self = self;
         predecessor = self;
         fingers = new NodeInfo[FINGER_TABLE_SIZE];
-        successors = new NodeInfo[NUM_SUCCESSORS];
+        successors = new SynchronizedFixedLinkedList<>(NUM_SUCCESSORS);
 
         for (int i = 0; i < fingers.length; i++)
             fingers[i] = self;
@@ -66,7 +68,7 @@ public class FingerTable {
                 return fingers[i];
         }
 
-        return successors[0];
+        return successors.get(0);
     }
 
     @Override
@@ -93,12 +95,12 @@ public class FingerTable {
         sb.append("Successors:\n");
         sb.append("Index\t\t\tID\n");
 
-        for (int i = 0; i < successors.length; i++) {
+        for (int i = 0; i < successors.size(); i++) {
             sb.append(i);
             sb.append("\t\t\t");
-            sb.append(successors[i] == null
+            sb.append(successors.get(i) == null
                     ? "null"
-                    : successors[i].getId());
+                    : successors.get(i).getId());
             sb.append("\n");
         }
 
@@ -112,7 +114,7 @@ public class FingerTable {
      * @throws Exception
      */
     public void fill(Node currentNode) throws IOException {
-        if(fingers[0] == null)
+        if (fingers[0] == null)
             return;
 
         for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
@@ -169,15 +171,15 @@ public class FingerTable {
      * @return NodeInfo for the successor
      */
     public NodeInfo getSuccessor() {
-        return (successors[0] != null ? successors[0] : fingers[0]);
+        return (successors.get(0) != null ? successors.get(0) : fingers[0]);
     }
 
-    public NodeInfo getNthSuccessor(int index) {
-        return successors[index];
+    public NodeInfo getNthSuccessor(int index) throws IndexOutOfBoundsException {
+        return successors.get(index);
     }
 
     public void setSuccessor(NodeInfo successor, int index) {
-        successors[index] = successor;
+        successors.set(index, successor);
         fingers[index] = successor;
     }
 
@@ -202,12 +204,12 @@ public class FingerTable {
     }
 
     /**
-     * Check if a given node should be this node's predecessor
+     * Check if a given node should be this node's predecessor and sets it if it should.
      *
-     * @param node node being compared
+     * @param node Node being checked
      */
     public boolean updatePredecessor(NodeInfo node) {
-        if (node.equals(self) || node == null)
+        if (node == null || node.equals(self))
             return false;
 
         if (predecessor == null) {
@@ -215,11 +217,11 @@ public class FingerTable {
             return true;
         }
 
-        BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
-        if (between(predecessor, self, keyEquivalent)) {
+        if (between(predecessor, self, node.getId())) {
             predecessor = node;
             return true;
         }
+
         return false;
     }
 
@@ -227,45 +229,41 @@ public class FingerTable {
         if (node.equals(self))
             return;
 
-        int lowerNodeKey = self.getId();
+        NodeInfo lowerNode = self;
 
         /*
          * Find, if any, the first successor that should be after the node being checked
          * Shift all the nodes in the array a position forwards and
          * Insert the node in the correct position
          */
-        for (int upperNodeIndex = 0; upperNodeIndex < successors.length; upperNodeIndex++) {
-            NodeInfo upperNode = successors[upperNodeIndex];
-            if (node.equals(upperNode))
+        ListIterator<NodeInfo> iterator = successors.listIterator();
+        while (iterator.hasNext()) {
+            NodeInfo successor = iterator.next();
+            if (node.equals(successor))
                 break;
-
-            if (upperNode == null) {
-                successors[upperNodeIndex] = node;
-                break;
-            }
 
             int nodeKey = node.getId();
-            int upperNodeKey = upperNode.getId();
-            if (between(lowerNodeKey, upperNodeKey, nodeKey)) {
-                successors[successors.length - 1] = null;
 
-                for (int i = upperNodeIndex + 1; i < successors.length; i++) {
-                    successors[i] = successors[i - 1];
-                }
-
-                successors[upperNodeIndex] = node;
+            if (between(lowerNode, successor, nodeKey)) {
+                iterator.add(node);
                 break;
             }
 
-            lowerNodeKey = upperNodeKey;
+            lowerNode = successor;
         }
+
+        if (successors.size() < NUM_SUCCESSORS)
+            successors.add(node);
     }
 
     public void deleteSuccessor() {
-        for (int i = 0; i < successors.length - 1; i++) {
-            successors[i] = successors[i+1];
-        }
-        successors[successors.length - 1] = null;
-        fingers[0] = successors[0];
+        successors.popLast();
+        fingers[0] = successors.get(0);
+    }
+
+    public void informAboutNode(NodeInfo node) {
+        updateSuccessors(node);
+        updateFingerTable(node);
+        updatePredecessor(node);
     }
 }

@@ -6,7 +6,7 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
-import static server.Utils.hash;
+import static server.utils.Utils.hash;
 import static server.chord.Node.MAX_NODES;
 
 public class NodeInfo implements Serializable {

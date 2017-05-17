@@ -1,11 +1,7 @@
 package server.chord;
 
 import server.communication.Mailman;
-import server.communication.operations.LookupOperation;
-import server.communication.operations.NotifyOperation;
-import server.communication.operations.PutOperation;
-import server.communication.operations.ReplicationOperation;
-import server.communication.operations.RequestPredecessorOperation;
+import server.communication.operations.*;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -13,7 +9,8 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
-import static server.Utils.between;
+import static server.utils.Utils.addToNodeId;
+import static server.utils.Utils.between;
 
 public class Node {
     public static final int MAX_NODES = 128;
@@ -103,8 +100,6 @@ public class Node {
     public boolean bootstrap(NodeInfo bootstrapperNode) throws Exception {
 
         /* Get the node's successors */
-
-
         if (!findSuccessors(bootstrapperNode))
             return false;
 
@@ -112,8 +107,7 @@ public class Node {
          * The node now has knowledge of its next r successors,
          * now the finger table will be filled using the successor
          */
-
-        fillFingerTable();
+        fingerTable.fill(this);
 
         NodeInfo successor = fingerTable.getSuccessor();
 
@@ -124,39 +118,29 @@ public class Node {
         return !getPredecessor.isCompletedExceptionally() && !getPredecessor.isCancelled();
     }
 
-    private boolean findSuccessors(NodeInfo bootstrapperNode) throws IOException, ExecutionException, InterruptedException {
-
-        BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
+    private boolean findSuccessors(NodeInfo bootstrapperNode) throws IOException {
+        BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
 
         for (int i = 0; i < FingerTable.NUM_SUCCESSORS; i++) {
+            CompletableFuture<NodeInfo> successorLookup = lookupFrom(successorKey, bootstrapperNode);
 
-            int index = i;
-            CompletableFuture<Void> successorLookup = lookupFrom(successorKey, bootstrapperNode).thenAcceptAsync(
-                    successor -> {
-                        NodeInfo firstSuccessor = getSuccessor();
-                        if ((firstSuccessor == null || !successor.equals(firstSuccessor)) && !successor.equals(self))
-                            fingerTable.setSuccessor(successor, index);
-                    },
-                    threadPool);
-
-            successorLookup.get();
-
-            boolean completedOK = !successorLookup.isCompletedExceptionally() && !successorLookup.isCancelled();
-
-            if (!completedOK)
+            try {
+                successorLookup.get();
+            } catch (InterruptedException | ExecutionException e) {
+                /* If the lookup did not complete correctly */
                 return false;
+            }
 
-            if (fingerTable.getNthSuccessor(i) == null)
-                break;
-
-            successorKey = BigInteger.valueOf(Integer.remainderUnsigned(fingerTable.getNthSuccessor(i).getId() + 1, MAX_NODES));
+            try {
+                successorKey = BigInteger.valueOf(addToNodeId(fingerTable.getNthSuccessor(i).getId(), 1));
+            } catch (IndexOutOfBoundsException e) {
+                e.printStackTrace();
+                return false;
+                //FIXME: Should we retry or fail completely?
+            }
         }
 
         return true;
-    }
-
-    private void fillFingerTable() throws IOException {
-        fingerTable.fill(this);
     }
 
     /**
@@ -196,6 +180,7 @@ public class Node {
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
         result.complete(targetNode);
+        fingerTable.informAboutNode(targetNode);
     }
 
     public void finishPredecessorRequest(NodeInfo predecessor) {
@@ -209,7 +194,6 @@ public class Node {
 
     public void initializeStabilization() {
         stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
-
     }
 
 
@@ -251,7 +235,7 @@ public class Node {
         }
         try {
             System.out.println("Exiting");
-            fillFingerTable();
+            fingerTable.fill(this);
             System.out.println("Exiting");
         } catch (Exception e) {
             e.printStackTrace();
@@ -262,8 +246,6 @@ public class Node {
     /**
      * Get the node's successor's predecessor, check if it is not the current node
      * and notify the successor of this node's existence
-     *
-     * @throws Exception
      */
     private void stabilizeSuccessor() {
         NodeInfo successor = getSuccessor();
@@ -278,7 +260,7 @@ public class Node {
             System.err.println(e.getMessage());
             fingerTable.deleteSuccessor();
             try {
-                fillFingerTable();
+                fingerTable.fill(this);
             } catch (Exception ex) {
                 System.err.println("Unable to fill finger table");
                 return;
@@ -320,12 +302,13 @@ public class Node {
     }
 
     private void checkSuccessorStatus() throws IOException {
-        BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1, MAX_NODES));
+        BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
+
         CompletableFuture<Void> findSuccessor = lookup(successorKey).thenAcceptAsync(
                 successor -> {
                     NodeInfo currentSuccessor = getSuccessor();
-                    if(getSuccessor() == null || between(self.getId(),currentSuccessor.getId(),successor.getId()))
-                        fingerTable.setSuccessor(successor,0);
+                    if (getSuccessor() == null || between(self.getId(), currentSuccessor.getId(), successor.getId()))
+                        fingerTable.setSuccessor(successor, 0);
                 }
         );
 
@@ -336,14 +319,12 @@ public class Node {
         } catch (TimeoutException e) {
             e.printStackTrace();
             throw new IOException("Successor not responding, deleting reference");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
+
         if (findSuccessor.isCompletedExceptionally() || findSuccessor.isCancelled())
             throw new IOException("Successor not responding, deleting reference");
-
     }
 
     private void notifySuccessor(NodeInfo successor) {
