@@ -5,7 +5,7 @@ import java.rmi.RemoteException;
 
 public interface IInitiatorPeer extends Remote {
 
-    boolean backup(String pathName, int replicationDegree) throws RemoteException;
+    boolean backup(String pathName) throws RemoteException;
 
     boolean restore(String filename) throws RemoteException;
 

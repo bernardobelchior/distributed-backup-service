@@ -50,7 +50,7 @@ public class FingerTable {
     }
 
     /**
-     * Gets the best next node that precedes the key.
+     * Gets the next best node that precedes the key.
      *
      * @param key the key being searched
      * @return {NodeInfo} of the best next node.
@@ -59,11 +59,11 @@ public class FingerTable {
 
         int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
         for (int i = fingers.length - 1; i >= 0; i--) {
-            if (between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
+            if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
                 return fingers[i];
         }
 
-        return self;
+        return successors[0];
     }
 
     @Override
@@ -185,8 +185,12 @@ public class FingerTable {
 
     /**
      * Set the node's predecessor without checking
+<<<<<<< HEAD
      * Use only if needed (e.g. setting the predecessor to null)
      * See updatePredecessor()
+=======
+     * Use only if needed. See updatePredecessor()
+>>>>>>> devel
      *
      * @param predecessor new predecessor
      */

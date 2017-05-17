@@ -3,6 +3,7 @@ package server.communication.operations;
 import server.chord.Node;
 import server.chord.NodeInfo;
 
+import javax.xml.bind.DatatypeConverter;
 import java.math.BigInteger;
 
 public class LookupResultOperation implements Operation {
@@ -16,12 +17,8 @@ public class LookupResultOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Lookup operation for key " + key + " resolved as " + resultNode.getId());
+        System.out.println("Lookup operation for key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " resolved as " + resultNode.getId());
         currentNode.finishedLookup(key, resultNode);
     }
 
-    @Override
-    public String getKey() {
-        return String.valueOf(key);
-    }
 }

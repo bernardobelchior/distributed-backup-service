@@ -36,16 +36,18 @@ public class Mailman {
                 : addOpenConnection(new Connection(nodeInfo));
     }
 
-    public static void sendObject(NodeInfo nodeInfo, Object object) throws IOException {
-        if (object == null) {
+    public static void sendOperation(NodeInfo nodeInfo, Operation operation) throws IOException {
+        if (operation == null) {
             System.err.println("Received null object to send.");
             return;
         }
 
-        if(nodeInfo.getId() == currentNode.getInfo().getId())
-            System.err.println("WARNING! Trying to send object to self! Looking for object " + ((Operation) object).getKey());
-
-        getOrOpenConnection(nodeInfo).sendObject(object);
+        /* If we want to send the operation to the current node, it is equivalent to just running it.
+         * Otherwise, send to the correct node as expected. */
+        if (nodeInfo.equals(currentNode.getInfo()))
+            operation.run(currentNode);
+        else
+            getOrOpenConnection(nodeInfo).sendOperation(operation);
     }
 
     public static void listenForConnections(int port) {

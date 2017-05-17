@@ -34,9 +34,9 @@ public class Connection {
         return !socket.isClosed();
     }
 
-    public void sendObject(Object object) throws IOException {
+    public void sendOperation(Operation operation) throws IOException {
         synchronized (outputStream) {
-            outputStream.writeObject(object);
+            outputStream.writeObject(operation);
         }
     }
 
@@ -60,6 +60,7 @@ public class Connection {
         try {
             socket.close();
         } catch (IOException e1) {
+            System.err.println("Unable to close socket");
             e1.printStackTrace();
         }
     }

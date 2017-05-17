@@ -4,12 +4,12 @@ import server.chord.FingerTable;
 import server.chord.Node;
 import server.chord.NodeInfo;
 
-/**
- * Created by epassos on 5/15/17.
- */
+import static server.Utils.between;
+
+
 public class RequestPredecessorResultOperation implements Operation {
 
-    NodeInfo predecessor;
+    private NodeInfo predecessor;
 
     public RequestPredecessorResultOperation(NodeInfo predecessor) {
         this.predecessor = predecessor;
@@ -17,11 +17,15 @@ public class RequestPredecessorResultOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.finishPredecessorRequest(predecessor);
-    }
+/*        FingerTable fingerTable = currentNode.getFingerTable();
+        int predecessorId = predecessor.getId();
+        int successorId = fingerTable.getSuccessor().getId();
+        int currentId = currentNode.getInfo().getId();
 
-    @Override
-    public String getKey() {
-        return null;
+        if (between(predecessorId, successorId, currentId)) {
+            System.out.println("Setting predecessor to ID " + predecessorId + ".");
+            currentNode.finishPredecessorRequest(predecessor);
+        }*/
+        currentNode.finishPredecessorRequest(predecessor);
     }
 }

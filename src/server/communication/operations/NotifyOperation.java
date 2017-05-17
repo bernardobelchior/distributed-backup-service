@@ -21,7 +21,6 @@ public class NotifyOperation implements Operation{
             System.out.println("Notified of new predecessor.\nSetting predecessor to " + origin.getId());
     }
 
-    @Override
     public String getKey() {
         return null;
     }

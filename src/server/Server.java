@@ -3,7 +3,6 @@ package server;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.Mailman;
-import server.dht.DistributedHashTable;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -31,12 +30,10 @@ public class Server {
             return;
         }
 
-        DistributedHashTable<byte[]> dht = new DistributedHashTable<>(node);
-        node.setDHT(dht);
         Mailman.init(node, port);
 
         try {
-            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(dht));
+            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(node.getDistributedHashTable()));
         } catch (RemoteException e) {
             e.printStackTrace();
         }

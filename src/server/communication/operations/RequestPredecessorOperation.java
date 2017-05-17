@@ -6,9 +6,6 @@ import server.communication.Mailman;
 
 import java.io.IOException;
 
-/**
- * Created by epassos on 5/15/17.
- */
 public class RequestPredecessorOperation implements Operation {
     private NodeInfo origin;
 
@@ -24,14 +21,10 @@ public class RequestPredecessorOperation implements Operation {
         currentNode.getFingerTable().updatePredecessor(origin);
         RequestPredecessorResultOperation operation = new RequestPredecessorResultOperation(predecessor);
         try {
-            Mailman.sendObject(origin, operation);
+            Mailman.sendOperation(origin, operation);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    @Override
-    public String getKey() {
-        return null;
-    }
 }
