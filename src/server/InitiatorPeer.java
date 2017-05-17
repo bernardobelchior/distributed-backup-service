@@ -3,6 +3,7 @@ package server;
 import common.IInitiatorPeer;
 import server.chord.DistributedHashTable;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -12,9 +13,9 @@ import java.rmi.server.UnicastRemoteObject;
 import java.security.NoSuchAlgorithmException;
 
 public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer {
-    private final DistributedHashTable<byte[]> dht;
+    private final DistributedHashTable dht;
 
-    InitiatorPeer(DistributedHashTable<byte[]> dht) throws RemoteException {
+    InitiatorPeer(DistributedHashTable dht) throws RemoteException {
         super();
         this.dht = dht;
     }
@@ -52,8 +53,9 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
 
-        System.out.println("Filename " + pathName + " stored with key " + key);
-        return dht.put(key, file);
+        boolean ret = dht.put(key, file);
+        System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
+        return ret;
     }
 
     @Override

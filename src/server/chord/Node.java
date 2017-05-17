@@ -12,13 +12,13 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
-public class Node<T> {
+public class Node {
     public static final int MAX_NODES = 128;
     public static final int REPLICATION_DEGREE = 2;
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
-    private final DistributedHashTable<T> dht;
+    private final DistributedHashTable dht;
     private final ConcurrentHashMap<BigInteger, CompletableFuture<NodeInfo>> ongoingLookups = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
     private CompletableFuture<NodeInfo> predecessorLookup;
@@ -32,12 +32,14 @@ public class Node<T> {
         self = new NodeInfo(InetAddress.getLocalHost(), port);
         fingerTable = new FingerTable(self);
         predecessorLookup = null;
-        dht = new DistributedHashTable<>(this);
+        dht = new DistributedHashTable(this);
     }
 
     public CompletableFuture<NodeInfo> lookup(BigInteger key) throws IOException {
-        NodeInfo bestNextNode = fingerTable.getNextBestNode(key);
-        return lookupFrom(key, bestNextNode);
+        if (fingerTable.keyBelongsToSuccessor(key))
+            return lookupFrom(key, fingerTable.getSuccessor());
+        else
+            return lookupFrom(key, fingerTable.getNextBestNode(key));
     }
 
     /**
@@ -58,7 +60,7 @@ public class Node<T> {
         lookupResult = new CompletableFuture<>();
         ongoingLookups.put(key, lookupResult);
 
-        Mailman.sendObject(nodeToLookup, new LookupOperation(self, key));
+        Mailman.sendOperation(nodeToLookup, new LookupOperation(self, key));
 
         return lookupResult;
     }
@@ -72,7 +74,7 @@ public class Node<T> {
 
         requestResult = new CompletableFuture<>();
         predecessorLookup = requestResult;
-        Mailman.sendObject(successor, new RequestPredecessorOperation(self));
+        Mailman.sendOperation(successor, new RequestPredecessorOperation(self));
 
         return requestResult;
     }
@@ -173,7 +175,7 @@ public class Node<T> {
     }
 
 
-    public boolean store(BigInteger key, T value) {
+    public boolean store(BigInteger key, byte[] value) {
         if (!dht.storeLocally(key, value))
             return false;
 
@@ -185,7 +187,7 @@ public class Node<T> {
             System.err.println("I got no successor. What do I do?");
         } else {
             try {
-                Mailman.sendObject(successor, new ReplicationOperation<>(key, value));
+                Mailman.sendOperation(successor, new ReplicationOperation(key, value));
             } catch (IOException e) {
                 System.err.println("Could not start the replication operation.");
                 e.printStackTrace();
@@ -203,15 +205,15 @@ public class Node<T> {
         return threadPool;
     }
 
-    public void backup(BigInteger key, T value) {
+    public void backup(BigInteger key, byte[] value) {
         dht.backup(key, value);
     }
 
-    public DistributedHashTable<T> getDistributedHashTable() {
+    public DistributedHashTable getDistributedHashTable() {
         return dht;
     }
 
-    public CompletableFuture<Boolean> put(BigInteger key, T value) {
+    public CompletableFuture<Boolean> put(BigInteger key, byte[] value) {
         CompletableFuture<Boolean> put = new CompletableFuture<>();
 
         if (ongoingInsertions.putIfAbsent(key, put) != null) {
@@ -221,12 +223,8 @@ public class Node<T> {
 
         try {
             NodeInfo destination = lookup(key).get();
-            PutOperation<T> putOperation = new PutOperation<>(self, key, value);
-
-            if (destination.equals(self))
-                putOperation.run(this);
-            else
-                Mailman.sendObject(self, putOperation);
+            PutOperation putOperation = new PutOperation(self, key, value);
+            Mailman.sendOperation(destination, putOperation);
         } catch (IOException | InterruptedException | ExecutionException e) {
             System.err.println("Put operation failed. Please try again...");
             e.printStackTrace();

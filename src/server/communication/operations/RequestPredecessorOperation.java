@@ -20,7 +20,7 @@ public class RequestPredecessorOperation implements Operation {
         currentNode.getFingerTable().updatePredecessor(origin);
         RequestPredecessorResultOperation operation = new RequestPredecessorResultOperation(predecessor);
         try {
-            Mailman.sendObject(origin, operation);
+            Mailman.sendOperation(origin, operation);
         } catch (IOException e) {
             e.printStackTrace();
         }

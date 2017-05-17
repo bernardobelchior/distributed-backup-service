@@ -57,7 +57,7 @@ public class FingerTable {
      * @return true if the key is between the other two, or equal to the upper key
      */
     public boolean between(int lower, int upper, BigInteger key) {
-        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
+        int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
 
         if (lower < upper)
             return keyOwner > lower && keyOwner <= upper;
@@ -91,7 +91,7 @@ public class FingerTable {
     }
 
     /**
-     * Gets the best next node that precedes the key.
+     * Gets the next best node that precedes the key.
      *
      * @param key the key being searched
      * @return {NodeInfo} of the best next node.
@@ -104,7 +104,7 @@ public class FingerTable {
                 return successors[i];
         }
 
-        return self;
+        return successors[0];
     }
 
     @Override
@@ -137,7 +137,7 @@ public class FingerTable {
      * @param currentNode node the finger table belongs to
      * @throws Exception
      */
-    public void fill(Node<?> currentNode) throws Exception {
+    public void fill(Node currentNode) throws Exception {
         for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
 
             /* (NodeId + 2^i) mod MAX_NODES */
@@ -176,10 +176,9 @@ public class FingerTable {
 
         for (int i = 0; i < successors.length; i++) {
             int id = addToNodeId(self.getId(), (int) Math.pow(2, i) - 1);
-            if (between(id, successors[i].getId(), keyEquivalent)) {
-                System.out.format("%d is between %d and %d\nChanging finger table entry %d to %d\n", keyEquivalent, id, successors[i].getId(), i, keyEquivalent);
+            if (between(id, successors[i].getId(), keyEquivalent))
                 successors[i] = node;
-            }
+
         }
     }
 

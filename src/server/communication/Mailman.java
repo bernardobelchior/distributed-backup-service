@@ -2,6 +2,7 @@ package server.communication;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
+import server.communication.operations.Operation;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -18,9 +19,9 @@ public class Mailman {
     private static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
     private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
 
-    private static Node<?> currentNode;
+    private static Node currentNode;
 
-    public static void init(Node<?> currentNode, int port) {
+    public static void init(Node currentNode, int port) {
         Mailman.currentNode = currentNode;
         new Thread(() -> listenForConnections(port)).start();
     }
@@ -35,16 +36,18 @@ public class Mailman {
                 : addOpenConnection(new Connection(nodeInfo));
     }
 
-    public static void sendObject(NodeInfo nodeInfo, Object object) throws IOException {
-        if (object == null) {
+    public static void sendOperation(NodeInfo nodeInfo, Operation operation) throws IOException {
+        if (operation == null) {
             System.err.println("Received null object to send.");
             return;
         }
 
-        if (nodeInfo.getId() == currentNode.getInfo().getId())
-            System.err.println("WARNING! Trying to send object to self!");
-
-        getOrOpenConnection(nodeInfo).sendObject(object);
+        /* If we want to send the operation to the current node, it is equivalent to just running it.
+         * Otherwise, send to the correct node as expected. */
+        if (nodeInfo.equals(currentNode.getInfo()))
+            operation.run(currentNode);
+        else
+            getOrOpenConnection(nodeInfo).sendOperation(operation);
     }
 
     public static void listenForConnections(int port) {

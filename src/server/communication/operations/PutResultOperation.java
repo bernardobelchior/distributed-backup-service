@@ -5,7 +5,7 @@ import server.chord.NodeInfo;
 
 import java.math.BigInteger;
 
-public class PutResultOperation<T> implements Operation<T> {
+public class PutResultOperation implements Operation {
     private final BigInteger key;
     private final boolean successful;
     private final NodeInfo origin;
@@ -15,8 +15,9 @@ public class PutResultOperation<T> implements Operation<T> {
         this.key = key;
         this.successful = successful;
     }
+
     @Override
-    public void run(Node<T> currentNode) {
+    public void run(Node currentNode) {
         currentNode.finishedPut(key, successful);
     }
 }

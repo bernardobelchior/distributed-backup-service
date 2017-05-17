@@ -1,9 +1,9 @@
 package server;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 
 public class FileManager {
@@ -12,7 +12,6 @@ public class FileManager {
 
     public FileManager(int nodeId) {
         BASE_DIR = String.valueOf(nodeId);
-        createDirectories();
     }
 
     private void createDirectories() {
@@ -27,12 +26,13 @@ public class FileManager {
         return BASE_DIR + "/" + STORED_FILES_DIR;
     }
 
-    public void saveObject(BigInteger key, Object object) throws IOException {
-        File file = new File(getStoredFilesDir() + key.toString());
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(file));
+    public void saveFile(BigInteger key, byte[] content) throws IOException {
+        createDirectories();
+        File file = new File(getStoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
 
-        objectOutputStream.writeObject(object);
-        objectOutputStream.flush();
-        objectOutputStream.close();
+        fileOutputStream.write(content);
+        fileOutputStream.flush();
+        fileOutputStream.close();
     }
 }

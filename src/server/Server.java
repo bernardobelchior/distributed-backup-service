@@ -21,9 +21,9 @@ public class Server {
         }
         int port = Integer.parseUnsignedInt(args[1]);
 
-        Node<byte[]> node;
+        Node node;
         try {
-            node = new Node<>(port);
+            node = new Node(port);
         } catch (IOException | NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.err.println("Could not create node, aborting...");
