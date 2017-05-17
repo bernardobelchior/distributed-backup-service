@@ -9,6 +9,8 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 
+import static server.chord.Node.MAX_NODES;
+
 public class LookupOperation implements Operation {
     private BigInteger key;
     private final NodeInfo origin;
@@ -23,7 +25,7 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Looking up key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
+        System.out.println("Looking up key " + /*DatatypeConverter.printHexBinary(key.toByteArray())*/ key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
 
         FingerTable fingerTable = currentNode.getFingerTable();
 
@@ -33,24 +35,26 @@ public class LookupOperation implements Operation {
         try {
             if (reachedDestination) {
                 Mailman.sendOperation(origin, new LookupResultOperation(currentNode.getInfo(), key));
+                System.out.println("Sent reply");
 
                 fingerTable.updateFingerTable(origin);
+                fingerTable.updateSuccessors(origin);
                 fingerTable.updateFingerTable(senderNode);
+                fingerTable.updateSuccessors(senderNode);
+                System.out.println("21312312");
                 return;
             }
 
-            if (currentNode.keyBelongsToSuccessor(key)) {
+            if (currentNode.keyBelongsToSuccessor(key))
                 reachedDestination = true;
-            }
 
             NodeInfo nextBestNode = currentNode.getNextBestNode(key);
 
-            if (currentNode.getInfo().equals(nextBestNode))
+            if (nextBestNode == null || currentNode.getInfo().equals(nextBestNode))
                 nextBestNode = currentNode.getSuccessor();
 
-            System.out.format("Redirecting message to next best node, with ID %d\n", nextBestNode.getId());
-
             Mailman.sendOperation(nextBestNode, this);
+            System.out.format("Redirected message to next best node, with ID %d\n", nextBestNode.getId());
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -58,5 +62,9 @@ public class LookupOperation implements Operation {
 
         fingerTable.updateFingerTable(origin);
         fingerTable.updateFingerTable(senderNode);
+        fingerTable.updateSuccessors(origin);
+        fingerTable.updateSuccessors(senderNode);
+
+
     }
 }

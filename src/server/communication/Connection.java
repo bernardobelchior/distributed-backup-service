@@ -60,6 +60,7 @@ public class Connection {
         try {
             socket.close();
         } catch (IOException e1) {
+            System.err.println("Unable to close socket");
             e1.printStackTrace();
         }
     }
