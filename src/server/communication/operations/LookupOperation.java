@@ -35,13 +35,11 @@ public class LookupOperation implements Operation {
         try {
             if (reachedDestination) {
                 Mailman.sendOperation(origin, new LookupResultOperation(currentNode.getInfo(), key));
-                System.out.println("Sent reply");
 
                 fingerTable.updateFingerTable(origin);
                 fingerTable.updateSuccessors(origin);
                 fingerTable.updateFingerTable(senderNode);
                 fingerTable.updateSuccessors(senderNode);
-                System.out.println("21312312");
                 return;
             }
 

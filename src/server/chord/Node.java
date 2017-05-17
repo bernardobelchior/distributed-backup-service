@@ -27,7 +27,7 @@ public class Node {
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
-    private final ScheduledExecutorService timeoutExecutor = Executors.newScheduledThreadPool(5);
+    private final ScheduledExecutorService timeoutExecutor = Executors.newScheduledThreadPool(10);
 
     /**
      * @param port Port to start the service in
@@ -132,7 +132,6 @@ public class Node {
         for (int i = 0; i < FingerTable.NUM_SUCCESSORS; i++) {
 
             int index = i;
-            System.out.format("Finding successor %d, key is %d",i, successorKey);
             CompletableFuture<Void> successorLookup = lookupFrom(successorKey, bootstrapperNode).thenAcceptAsync(
                     successor -> {
                         NodeInfo firstSuccessor = getSuccessor();
@@ -201,15 +200,11 @@ public class Node {
     }
 
     public void finishPredecessorRequest(NodeInfo predecessor) {
-        System.out.println("A");
         fingerTable.updatePredecessor(predecessor);
-        System.out.println("B");
 
         if (ongoingPredecessorLookup == null)
             System.out.println("Null");
-        System.out.println("C");
         ongoingPredecessorLookup.complete(predecessor);
-        System.out.println("D");
         ongoingPredecessorLookup = null;
     }
 
@@ -244,17 +239,13 @@ public class Node {
     public void stabilizationProtocol() {
         System.out.println("Started Stabilization");
         try {
-            System.out.println("Stabilizing successor");
             stabilizeSuccessor();
-            System.out.println("Stabilized successor");
         } catch (Exception e) {
             // treat
             e.printStackTrace();
         }
         try {
-            System.out.println("Stabilizing predecessor");
             stabilizePredecessor();
-            System.out.println("Stabilized predecessor");
         } catch (Exception e) {
             //treat
             e.printStackTrace();
@@ -304,9 +295,7 @@ public class Node {
                 },
                 threadPool);
 
-        System.out.println("2");
         getSuccessorPredecessor.get();
-        System.out.println("3");
     }
 
     private void checkSuccessorStatus() throws Exception {
