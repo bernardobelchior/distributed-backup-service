@@ -17,15 +17,6 @@ public class RequestPredecessorResultOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-/*        FingerTable fingerTable = currentNode.getFingerTable();
-        int predecessorId = predecessor.getId();
-        int successorId = fingerTable.getSuccessor().getId();
-        int currentId = currentNode.getInfo().getId();
-
-        if (between(predecessorId, successorId, currentId)) {
-            System.out.println("Setting predecessor to ID " + predecessorId + ".");
-            currentNode.finishPredecessorRequest(predecessor);
-        }*/
         currentNode.finishPredecessorRequest(predecessor);
     }
 }

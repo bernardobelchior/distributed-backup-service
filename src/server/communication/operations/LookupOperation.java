@@ -9,6 +9,7 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 
+import static server.chord.DistributedHashTable.MAXIMUM_HOPS;
 import static server.chord.Node.MAX_NODES;
 
 public class LookupOperation implements Operation {
@@ -16,15 +17,20 @@ public class LookupOperation implements Operation {
     private final NodeInfo origin;
     private NodeInfo lastNode;
     private boolean reachedDestination = false;
+    private int timeToLive;
 
     public LookupOperation(NodeInfo origin, BigInteger key) {
         this.origin = origin;
         lastNode = origin;
         this.key = key;
+        timeToLive = MAXIMUM_HOPS;
     }
 
     @Override
     public void run(Node currentNode) {
+        if(--timeToLive < 0)
+            return;
+
         System.out.println("Looking up key " + /*DatatypeConverter.printHexBinary(key.toByteArray())*/ key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
 
         FingerTable fingerTable = currentNode.getFingerTable();
