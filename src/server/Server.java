@@ -3,7 +3,6 @@ package server;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.Mailman;
-import server.dht.DistributedHashTable;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -11,7 +10,6 @@ import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.ExecutionException;
 
 public class Server {
 
@@ -32,13 +30,17 @@ public class Server {
             return;
         }
 
-        DistributedHashTable<byte[]> dht = new DistributedHashTable<>(node);
-        node.setDHT(dht);
         Mailman.init(node, port);
 
         try {
-            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(dht));
+            LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(node.getDistributedHashTable()));
         } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
+        } catch (UnknownHostException e) {
             e.printStackTrace();
         }
 
@@ -56,6 +58,7 @@ public class Server {
             int bootstrapPort = Integer.parseUnsignedInt(args[3]);
 
             try {
+                System.out.println("Starting the process of joining the network...");
                 if (!node.bootstrap(new NodeInfo(address, bootstrapPort))) {
                     System.err.println("Node bootstrapping failed. Exiting..");
                     return;
@@ -63,23 +66,9 @@ public class Server {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        } else {
-            try {
-                node.waitForANodeToJoin();
-            } catch (ExecutionException | InterruptedException e) {
-                e.printStackTrace();
-                System.err.println("Error waiting for a node to join. Exiting...");
-                return;
-            }
-
-            /* TODO: Start the stabilization process.
-            * I should do it because I am the first and this ensures that the stabilization process only runs once. */
         }
 
-        try {
-            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
+        System.out.println("Joined the network successfully.");
+        node.initializeStabilization();
     }
 }

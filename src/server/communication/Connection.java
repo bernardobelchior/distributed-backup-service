@@ -19,10 +19,10 @@ import encryptUtils.KeyEncryption.obtainPublicKey;
 import encryptUtils.KeyEncryption.obtainPrivateKey;
 
 public class Connection {
-    private SSLSocket socket;
-    private ObjectOutputStream outputStream;
-    private ObjectInputStream inputStream;
-    private NodeInfo nodeInfo;
+    private final SSLSocket socket;
+    private final ObjectOutputStream outputStream;
+    private final ObjectInputStream inputStream;
+    private final NodeInfo nodeInfo;
 
     Connection(NodeInfo nodeInfo) throws IOException {
         this(
@@ -45,11 +45,10 @@ public class Connection {
         return !socket.isClosed();
     }
 
-    public void sendObject(Object object) throws IOException {
-		//byte[] bytesToSend = turnToByteArray(object);
-		//PublicKey pk = obtainPublicKey(File com a key);
-		//byte[] encryptedBytes = encrypt(bytesToSend,pk);
-        outputStream.write(object);
+    public void sendOperation(Operation operation) throws IOException {
+        synchronized (outputStream) {
+            outputStream.writeObject(operation);
+        }
     }
 
     public void listen(Node currentNode) {
@@ -74,6 +73,7 @@ public class Connection {
         try {
             socket.close();
         } catch (IOException e1) {
+            System.err.println("Unable to close socket");
             e1.printStackTrace();
         }
     }
