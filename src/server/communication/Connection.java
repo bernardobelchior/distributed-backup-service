@@ -46,10 +46,10 @@ public class Connection {
     }
 
     public void sendObject(Object object) throws IOException {
-		byte[] bytesToSend = turnToByteArray(object);
+		//byte[] bytesToSend = turnToByteArray(object);
 		//PublicKey pk = obtainPublicKey(File com a key);
-		byte[] encryptedBytes = encrypt(bytesToSend,pk);
-        outputStream.write(encryptedBytes);
+		//byte[] encryptedBytes = encrypt(bytesToSend,pk);
+        outputStream.write(object);
     }
 
     public void listen(Node currentNode) {

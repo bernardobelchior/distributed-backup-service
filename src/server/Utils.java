@@ -21,7 +21,7 @@ public class Utils {
         return Integer.remainderUnsigned(nodeId + value, MAX_NODES);
     }
 	
-	public byte[] turnToByteArray(Object object){
+	/*public byte[] turnToByteArray(Object object){
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		ObjectOutput out = null;
 		byte[] bArray = null;
@@ -36,5 +36,5 @@ public class Utils {
 				} catch (IOException ex) {}
 			}
 		return bArray;		
-	}
+	}*/
 }

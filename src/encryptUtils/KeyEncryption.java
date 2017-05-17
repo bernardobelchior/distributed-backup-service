@@ -34,13 +34,13 @@ public class KeyEncryption{
 		pubKeyFile.createNewFile();
 		ObjectOutputStream pubKeyOutputStream = new ObjectOutPutStream(new FileOutputStream(pubKeyFile));
 		pubKeyOutputStream.writeObject(kPair.getPublic());
-		pubKeyOutputStream.close;}
+		pubKeyOutputStream.close();}
 		
 		if(!privKeyFile.exists()){
 		privKeyFile.createNewFile();
 		ObjectOutputStream privKeyOutputStream = new ObjectOutPutStream(new FileOutputStream(privKeyFile));
 		privKeyOutputStream.writeObject(kPair.getPrivate());
-		privKeyOutputStream.close;}
+		privKeyOutputStream.close();}
 		
 	}
 
@@ -73,7 +73,7 @@ public class KeyEncryption{
 		  }
 	
 	
-}
+
 
 	public static PublicKey obtainPublicKey(File path){
 		ObjectInputStream inputStream = null;
@@ -87,3 +87,5 @@ public class KeyEncryption{
 		inputStream = new ObjectInputStream(new FileInputStream(path));
 		final PrivateKey privateKey = (PrivateKey) inputStream.readObject();
 	}
+	
+}
