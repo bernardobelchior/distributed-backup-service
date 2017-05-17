@@ -44,7 +44,6 @@ public class DistributedHashTable<T> {
         sb.append("Current Node ID: ");
         sb.append(self.getInfo().getId());
         sb.append("\n\n");
-
         sb.append(self.getFingerTable().toString());
         return sb.toString();
     }

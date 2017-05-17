@@ -41,8 +41,9 @@ public class LookupOperation implements Operation {
                     Mailman.sendObject(origin, new LookupResultOperation(currentNode.getInfo(), key));
 
                 fingerTable.updateFingerTable(origin);
+                fingerTable.updateSuccessors(origin);
                 fingerTable.updateFingerTable(senderNode);
-                System.out.println("Done");
+                fingerTable.updateSuccessors(senderNode);
                 return;
             }
 
@@ -52,10 +53,12 @@ public class LookupOperation implements Operation {
 
             NodeInfo nextBestNode = currentNode.getNextBestNode(key);
 
+
             if (currentNode.getInfo().equals(nextBestNode))
                 nextBestNode = currentNode.getSuccessor();
 
-//            System.out.format("Redirecting message to next best node, with ID %d\n", nextBestNode.getId());
+            System.out.println(nextBestNode == null);
+            System.out.format("Redirecting message to next best node, with ID %d\n", nextBestNode.getId());
 
             Mailman.sendObject(nextBestNode, this);
 
@@ -64,7 +67,9 @@ public class LookupOperation implements Operation {
         }
 
         fingerTable.updateFingerTable(origin);
+        fingerTable.updateSuccessors(origin);
         fingerTable.updateFingerTable(senderNode);
+        fingerTable.updateSuccessors(senderNode);
     }
 
     @Override

@@ -6,22 +6,26 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static server.Utils.addToNodeId;
+import static server.Utils.between;
 import static server.chord.Node.MAX_NODES;
 
 public class FingerTable {
     public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
+    public static final int NUM_SUCCESSORS = 5;
 
     private NodeInfo predecessor;
+    private final NodeInfo[] fingers;
     private final NodeInfo[] successors;
     private final NodeInfo self;
 
     public FingerTable(NodeInfo self) {
         this.self = self;
         predecessor = self;
-        successors = new NodeInfo[FINGER_TABLE_SIZE];
+        fingers = new NodeInfo[FINGER_TABLE_SIZE];
+        successors = new NodeInfo[NUM_SUCCESSORS];
 
-        for (int i = 0; i < successors.length; i++)
-            successors[i] = self;
+        for (int i = 0; i < fingers.length; i++)
+            fingers[i] = self;
     }
 
     /**
@@ -32,61 +36,17 @@ public class FingerTable {
      * @return true if the key belongs to the node's successor
      */
     public boolean keyBelongsToSuccessor(BigInteger key) {
-        return between(self, successors[0], key);
+        return between(self, fingers[0], key);
     }
 
-    /**
-     * Check if a given key is between the lower and upper keys in the Chord circle
-     *
-     * @param lower
-     * @param upper
-     * @param key
-     * @return true if the key is between the other two, or equal to the upper key
-     */
-    public boolean between(NodeInfo lower, NodeInfo upper, BigInteger key) {
-        return between(lower.getId(), upper.getId(), key);
-    }
-
-    /**
-     * Check if a given key is between the lower and upper keys in the Chord circle
-     *
-     * @param lower
-     * @param upper
-     * @param key
-     * @return true if the key is between the other two, or equal to the upper key
-     */
-    public boolean between(int lower, int upper, BigInteger key) {
-        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
-
-        if (lower < upper)
-            return keyOwner > lower && keyOwner <= upper;
-        else
-            return keyOwner > lower || keyOwner <= upper;
-    }
-
-    /**
-     * Check if a given key is between the lower and upper keys in the Chord circle
-     *
-     * @param lower
-     * @param upper
-     * @param key
-     * @return true if the key is between the other two, or equal to the upper key
-     */
-    public static boolean between(int lower, int upper, int key) {
-
-        if (lower < upper)
-            return key > lower && key <= upper;
-        else
-            return key > lower || key <= upper;
-    }
 
     /**
      * @param index
      * @param successor
      */
     public void setFinger(int index, NodeInfo successor) {
-        System.out.println("Updated successors[" + index + "] with " + successor);
-        successors[index] = successor;
+        System.out.println("Updated fingers[" + index + "] with " + successor);
+        fingers[index] = successor;
     }
 
     /**
@@ -98,9 +58,9 @@ public class FingerTable {
     public NodeInfo getNextBestNode(BigInteger key) {
 
         int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
-        for (int i = successors.length - 1; i >= 0; i--) {
-            if (between(self.getId(), keyOwner, successors[i].getId()) && !successors[i].equals(self))
-                return successors[i];
+        for (int i = fingers.length - 1; i >= 0; i--) {
+            if (between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
+                return fingers[i];
         }
 
         return self;
@@ -115,6 +75,18 @@ public class FingerTable {
                 ? "null"
                 : predecessor.getId());
         sb.append("\n\n");
+        sb.append("Finger Table:\n");
+        sb.append("Index\t\t\tID\n");
+
+        for (int i = 0; i < fingers.length; i++) {
+            sb.append(i);
+            sb.append("\t\t\t");
+            sb.append(fingers[i] == null
+                    ? "null"
+                    : fingers[i].getId());
+            sb.append("\n");
+        }
+
         sb.append("Successors:\n");
         sb.append("Index\t\t\tID\n");
 
@@ -145,10 +117,10 @@ public class FingerTable {
             try {
                 /*
                  * If the key corresponding to the ith row of the finger table stands between me and my successor,
-                 * it means that successors[i] is still my successor. If it is not, look for the corresponding node.
+                 * it means that fingers[i] is still my successor. If it is not, look for the corresponding node.
                  */
-                if (between(self, successors[0], keyToLookup))
-                    successors[i] = successors[0];
+                if (between(self, fingers[0], keyToLookup))
+                    fingers[i] = fingers[0];
                 else {
                     int index = i;
                     CompletableFuture<Void> fingerLookup = currentNode.lookup(keyToLookup).thenAcceptAsync(
@@ -174,9 +146,14 @@ public class FingerTable {
     public void updateFingerTable(NodeInfo node) {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
 
-        for (int i = 0; i < successors.length; i++)
-            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), successors[i].getId(), keyEquivalent))
-                successors[i] = node;
+        for (int i = 0; i < fingers.length; i++)
+            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent)) {
+
+                if (i == 0)
+                    setSuccessor(node, 0); //already sets finger[0] to the node
+                else
+                    fingers[i] = node;
+            }
     }
 
     /**
@@ -185,7 +162,16 @@ public class FingerTable {
      * @return NodeInfo for the successor
      */
     public NodeInfo getSuccessor() {
-        return successors[0];
+        return (successors[0] != null ? successors[0] : fingers[0]);
+    }
+
+    public NodeInfo getNthSuccessor(int index) {
+        return successors[index];
+    }
+
+    public void setSuccessor(NodeInfo successor, int index) {
+        successors[index] = successor;
+        fingers[index] = successor;
     }
 
     /**
@@ -199,7 +185,8 @@ public class FingerTable {
 
     /**
      * Set the node's predecessor without checking
-     * Use only if needed. See updatePredecessor()
+     * Use only if needed (e.g. setting the predecessor to null)
+     * See updatePredecessor()
      *
      * @param predecessor new predecessor
      */
@@ -213,10 +200,10 @@ public class FingerTable {
      * @param node node being compared
      */
     public boolean updatePredecessor(NodeInfo node) {
-        if(node.equals(self) || node == null)
+        if (node.equals(self) || node == null)
             return false;
 
-        if(predecessor == null) {
+        if (predecessor == null) {
             predecessor = node;
             return true;
         }
@@ -229,4 +216,40 @@ public class FingerTable {
         return false;
     }
 
+    public void updateSuccessors(NodeInfo node) {
+        if(node.equals(self))
+            return;
+
+        int lowerNodeKey = self.getId();
+
+        /*
+         * Find, if any, the first successor that should be after the node being checked
+         * Shift all the nodes in the array a position forwards and
+         * Insert the node in the correct position
+         */
+        for (int upperNodeIndex = 0; upperNodeIndex < successors.length; upperNodeIndex++) {
+            NodeInfo upperNode = successors[upperNodeIndex];
+            if (upperNode == null) {
+                successors[upperNodeIndex] = node;
+                break;
+            }
+
+            if (node.equals(upperNode))
+                break;
+
+            int nodeKey = node.getId();
+            int upperNodeKey = upperNode.getId();
+            if (between(lowerNodeKey, upperNodeKey, nodeKey)) {
+                successors[successors.length - 1] = null;
+
+                for (int i = successors.length - 1; i > upperNodeIndex; i--)
+                    successors[i] = successors[i - 1];
+
+                successors[upperNodeIndex] = node;
+                break;
+            }
+
+            lowerNodeKey = upperNodeKey;
+        }
+    }
 }
