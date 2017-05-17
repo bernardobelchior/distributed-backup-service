@@ -247,19 +247,48 @@ public class Node {
         if (successor.equals(self))
             return;
 
+        checkSuccessorStatus();
+
+        successor = getSuccessor();
+
+        NodeInfo finalSuccessor = successor;
         CompletableFuture<Void> getSuccessorPredecessor = requestSucessorPredecessor(successor).thenAcceptAsync(
                 successorPredecessor -> {
 
-                    if (between(self.getId(), successor.getId(), successorPredecessor.getId()) &&
-                            !self.equals(successorPredecessor))
+                    if(self.equals(successorPredecessor))
+                        return;
+
+                    /*
+                     * Check if the predecessor of my successor should be my successor
+                     * i.e. if successorPredecessor is in the interval [node,successor]
+                     */
+                    if (between(self.getId(), finalSuccessor.getId(), successorPredecessor.getId()))
                         fingerTable.setFinger(0, successorPredecessor);
 
-                    System.out.println("Notifying Successor");
+                    /* Tell my new successor I should be his predecessor */
                     notifySuccessor(successorPredecessor);
                 },
                 threadPool);
 
         getSuccessorPredecessor.get();
+    }
+
+    private void checkSuccessorStatus() throws Exception {
+        BigInteger successorKey = BigInteger.valueOf(Integer.remainderUnsigned(self.getId() + 1,MAX_NODES));
+        CompletableFuture<NodeInfo> findSuccessor = lookup(successorKey);
+        CompletableFuture timeoutFuture = new CompletableFuture();
+
+        stabilizationExecutor.schedule(
+                () -> timeoutFuture.completeExceptionally(new TimeoutException()),
+                400, TimeUnit.MILLISECONDS);
+
+        CompletableFuture result = CompletableFuture.anyOf(findSuccessor,timeoutFuture);
+
+        if (result.isCompletedExceptionally() || result.isCancelled()) {
+            System.out.println("Successor not responding, deleting reference");
+            fingerTable.deleteSuccessor();
+            fillFingerTable();
+        }
     }
 
     private void notifySuccessor(NodeInfo successor) {

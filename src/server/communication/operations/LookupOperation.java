@@ -57,10 +57,8 @@ public class LookupOperation implements Operation {
             if (currentNode.getInfo().equals(nextBestNode))
                 nextBestNode = currentNode.getSuccessor();
 
-            System.out.println(nextBestNode == null);
-            System.out.format("Redirecting message to next best node, with ID %d\n", nextBestNode.getId());
-
             Mailman.sendObject(nextBestNode, this);
+            System.out.format("Redirected message to next best node, with ID %d\n", nextBestNode.getId());
 
         } catch (IOException e) {
             e.printStackTrace();

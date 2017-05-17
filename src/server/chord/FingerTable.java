@@ -217,7 +217,7 @@ public class FingerTable {
     }
 
     public void updateSuccessors(NodeInfo node) {
-        if(node.equals(self))
+        if (node.equals(self))
             return;
 
         int lowerNodeKey = self.getId();
@@ -242,8 +242,8 @@ public class FingerTable {
             if (between(lowerNodeKey, upperNodeKey, nodeKey)) {
                 successors[successors.length - 1] = null;
 
-                for (int i = successors.length - 1; i > upperNodeIndex; i--)
-                    successors[i] = successors[i - 1];
+                /* Shift all the successors to the next position in the array */
+                System.arraycopy(successors, upperNodeIndex, successors, upperNodeIndex + 1, successors.length - 1 - upperNodeIndex);
 
                 successors[upperNodeIndex] = node;
                 break;
@@ -251,5 +251,12 @@ public class FingerTable {
 
             lowerNodeKey = upperNodeKey;
         }
+    }
+
+    public void deleteSuccessor() {
+        /* Shift all the successors to the previous position in the array */
+        System.arraycopy(successors, 1, successors, 0, successors.length - 1 - 1);
+        successors[successors.length - 1] = null;
+        fingers[0] = successors[0];
     }
 }
