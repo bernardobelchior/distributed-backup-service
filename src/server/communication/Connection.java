@@ -12,11 +12,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 
-import encryptUtils.KeyEncryption.genkeys;
-import encryptUtils.KeyEncryption.encryptMessage;
-import encryptUtils.KeyEncryption.decrypt;
-import encryptUtils.KeyEncryption.obtainPublicKey;
-import encryptUtils.KeyEncryption.obtainPrivateKey;
 
 public class Connection {
     private final SSLSocket socket;
@@ -36,8 +31,7 @@ public class Connection {
         this.socket = socket;
         outputStream = new ObjectOutputStream(socket.getOutputStream());
         inputStream = new ObjectInputStream(socket.getInputStream());
-		//Não sei qual diretorio por
-		//genkeys(pathpapublica,pathpaprivada);
+		
 		
     }
 
@@ -54,8 +48,6 @@ public class Connection {
     public void listen(Node currentNode) {
         while (true) {
             try {
-				//Still needs decrypting
-				
                 ((Operation) inputStream.readObject()).run(currentNode);
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();

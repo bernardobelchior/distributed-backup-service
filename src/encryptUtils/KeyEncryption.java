@@ -49,7 +49,7 @@ public class KeyEncryption{
 		byte[] cipherText = null;
 		try{
 		final Cipher cipher  = Cipher.getInstance(ALGORITHM);
-		cipher.init(Cipher.DECRYPT_MODE, privKey);
+		cipher.init(Cipher.ENCRYPT_MODE, privKey);
 		cipherText = cipher.doFinal(text);
 		} catch(Exception e){
 			e.printStackTrace();
@@ -57,8 +57,8 @@ public class KeyEncryption{
 		return cipherText;
 	}
 	
-	public static String decrypt(byte[] text, PrivateKey key) {
-		    byte[] dectyptedText = null;
+	public static byte[] decrypt(byte[] text, PrivateKey key) {
+		    byte[] decryptedArray = null;
 		    try {
 		       final Cipher cipher = Cipher.getInstance(ALGORITHM);
 
@@ -69,7 +69,7 @@ public class KeyEncryption{
 		      ex.printStackTrace();
 		    }
 
-		    return new String(dectyptedText);
+		    return decryptedArray;
 		  }
 	
 	
