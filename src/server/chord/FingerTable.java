@@ -1,9 +1,12 @@
 package server.chord;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static server.Utils.addToNodeId;
 import static server.Utils.between;
@@ -108,7 +111,10 @@ public class FingerTable {
      * @param currentNode node the finger table belongs to
      * @throws Exception
      */
-    public void fill(Node currentNode) throws Exception {
+    public void fill(Node currentNode) throws IOException {
+        if(fingers[0] == null)
+            return;
+
         for (int i = 1; i < FINGER_TABLE_SIZE; i++) {
 
             /* (NodeId + 2^i) mod MAX_NODES */
@@ -119,7 +125,7 @@ public class FingerTable {
                  * If the key corresponding to the ith row of the finger table stands between me and my successor,
                  * it means that fingers[i] is still my successor. If it is not, look for the corresponding node.
                  */
-                if (between(self, fingers[0], keyToLookup))
+                if (fingers[i] != null && between(self, fingers[0], keyToLookup))
                     fingers[i] = fingers[0];
                 else {
                     int index = i;
@@ -127,13 +133,14 @@ public class FingerTable {
                             finger -> setFinger(index, finger),
                             currentNode.getThreadPool());
 
-                    fingerLookup.get();
+                    System.out.println("i = " + i);
+                    fingerLookup.get(400, TimeUnit.MILLISECONDS);
 
                     if (fingerLookup.isCancelled() || fingerLookup.isCompletedExceptionally())
-                        throw new Exception("Could not find finger" + i);
+                        throw new IOException("Could not find finger" + i);
                 }
-            } catch (IOException | InterruptedException | ExecutionException e) {
-                throw new Exception("Could not find finger " + i);
+            } catch (TimeoutException | IOException | InterruptedException | ExecutionException e) {
+                throw new IOException("Could not find finger " + i);
             }
         }
     }
@@ -185,12 +192,8 @@ public class FingerTable {
 
     /**
      * Set the node's predecessor without checking
-<<<<<<< HEAD
      * Use only if needed (e.g. setting the predecessor to null)
      * See updatePredecessor()
-=======
-     * Use only if needed. See updatePredecessor()
->>>>>>> devel
      *
      * @param predecessor new predecessor
      */
@@ -233,21 +236,22 @@ public class FingerTable {
          */
         for (int upperNodeIndex = 0; upperNodeIndex < successors.length; upperNodeIndex++) {
             NodeInfo upperNode = successors[upperNodeIndex];
+            if (node.equals(upperNode))
+                break;
+
             if (upperNode == null) {
                 successors[upperNodeIndex] = node;
                 break;
             }
-
-            if (node.equals(upperNode))
-                break;
 
             int nodeKey = node.getId();
             int upperNodeKey = upperNode.getId();
             if (between(lowerNodeKey, upperNodeKey, nodeKey)) {
                 successors[successors.length - 1] = null;
 
-                /* Shift all the successors to the next position in the array */
-                System.arraycopy(successors, upperNodeIndex, successors, upperNodeIndex + 1, successors.length - 1 - upperNodeIndex);
+                for (int i = upperNodeIndex + 1; i < successors.length; i++) {
+                    successors[i] = successors[i - 1];
+                }
 
                 successors[upperNodeIndex] = node;
                 break;
@@ -258,8 +262,9 @@ public class FingerTable {
     }
 
     public void deleteSuccessor() {
-        /* Shift all the successors to the previous position in the array */
-        System.arraycopy(successors, 1, successors, 0, successors.length - 1 - 1);
+        for (int i = 0; i < successors.length - 1; i++) {
+            successors[i] = successors[i+1];
+        }
         successors[successors.length - 1] = null;
         fingers[0] = successors[0];
     }
