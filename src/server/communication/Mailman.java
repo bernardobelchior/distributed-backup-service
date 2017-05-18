@@ -8,7 +8,6 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,7 +15,7 @@ import java.util.concurrent.Executors;
 public class Mailman {
     private static final int MAX_SIMULTANEOUS_CONNECTIONS = 128;
 
-    private static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
     private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
 
     private static Node currentNode;
@@ -31,6 +30,7 @@ public class Mailman {
     }
 
     private static Connection getOrOpenConnection(NodeInfo nodeInfo) throws IOException {
+        System.out.println("Connection to " + nodeInfo + " is open: " + isConnectionOpen(nodeInfo));
         return isConnectionOpen(nodeInfo)
                 ? openConnections.get(nodeInfo)
                 : addOpenConnection(new Connection(nodeInfo));
@@ -66,17 +66,14 @@ public class Mailman {
         while (true) {
             try {
                 SSLSocket socket = (SSLSocket) serverSocket.accept();
-                NodeInfo nodeInfo = new NodeInfo(socket.getInetAddress(), socket.getPort());
-
-                Connection connection = new Connection(nodeInfo, socket);
-                addOpenConnection(connection);
-            } catch (IOException | NoSuchAlgorithmException e) {
+                new Connection(socket, currentNode, connectionsThreadPool);
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private static Connection addOpenConnection(Connection connection) throws IOException {
+    public static Connection addOpenConnection(Connection connection) throws IOException {
         openConnections.put(connection.getNodeInfo(), connection);
         connectionsThreadPool.submit(() -> connection.listen(currentNode));
         return connection;
@@ -84,5 +81,6 @@ public class Mailman {
 
     public static void connectionClosed(NodeInfo connection) {
         openConnections.remove(connection);
+        System.err.println(openConnections.toString());
     }
 }

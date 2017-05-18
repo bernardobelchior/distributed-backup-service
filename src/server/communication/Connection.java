@@ -9,25 +9,28 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.concurrent.ExecutorService;
 
 public class Connection {
     private final SSLSocket socket;
     private final ObjectOutputStream outputStream;
     private final ObjectInputStream inputStream;
-    private final NodeInfo nodeInfo;
+    private NodeInfo nodeInfo;
 
     Connection(NodeInfo nodeInfo) throws IOException {
-        this(
-                nodeInfo,
-                (SSLSocket) SSLSocketFactory.getDefault().
-                        createSocket(nodeInfo.getAddress(), nodeInfo.getPort()));
+        this.nodeInfo = nodeInfo;
+        socket = (SSLSocket) SSLSocketFactory.getDefault().
+                createSocket(nodeInfo.getAddress(), nodeInfo.getPort());
+
+        outputStream = new ObjectOutputStream(socket.getOutputStream());
+        inputStream = new ObjectInputStream(socket.getInputStream());
     }
 
-    Connection(NodeInfo nodeInfo, SSLSocket socket) throws IOException {
-        this.nodeInfo = nodeInfo;
+    Connection(SSLSocket socket, Node currentNode, ExecutorService connectionsThreadPool) throws IOException {
         this.socket = socket;
         outputStream = new ObjectOutputStream(socket.getOutputStream());
         inputStream = new ObjectInputStream(socket.getInputStream());
+        connectionsThreadPool.submit(() -> waitForAuthentication(currentNode));
     }
 
     public boolean isOpen() {
@@ -40,28 +43,44 @@ public class Connection {
         }
     }
 
+    public synchronized void waitForAuthentication(Node currentNode) {
+        try {
+            Operation operation = ((Operation) inputStream.readObject());
+            this.nodeInfo = operation.getOrigin();
+            Mailman.addOpenConnection(this);
+            operation.run(currentNode);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Connection to node " + nodeInfo.getId() + " closed.");
+        }
+    }
+
     public void listen(Node currentNode) {
         while (true) {
             try {
-                ((Operation) inputStream.readObject()).run(currentNode);
+                synchronized (this) {
+                    ((Operation) inputStream.readObject()).run(currentNode);
+                }
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
-                System.out.println("Connection to node " + nodeInfo.getId() + " closed.");
+                System.err.println("Connection to node " + nodeInfo.getId() + " closed.\n" + Mailman.openConnections.toString());
+                e.printStackTrace();
                 closeConnection();
                 return;
             }
         }
     }
 
-    private void closeConnection() {
+    private synchronized void closeConnection() {
         Mailman.connectionClosed(nodeInfo);
 
         try {
             socket.close();
-        } catch (IOException e1) {
+        } catch (IOException e) {
             System.err.println("Unable to close socket");
-            e1.printStackTrace();
         }
     }
 

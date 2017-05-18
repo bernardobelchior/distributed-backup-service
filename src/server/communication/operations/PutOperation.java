@@ -7,13 +7,12 @@ import server.communication.Mailman;
 import java.io.IOException;
 import java.math.BigInteger;
 
-public class PutOperation implements Operation {
+public class PutOperation extends Operation {
     private final BigInteger key;
     private final byte[] value;
-    private final NodeInfo origin;
 
     public PutOperation(NodeInfo origin, BigInteger key, byte[] value) {
-        this.origin = origin;
+        super(origin);
         this.key = key;
         this.value = value;
     }

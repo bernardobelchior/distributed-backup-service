@@ -6,22 +6,23 @@ import server.communication.Mailman;
 
 import java.io.IOException;
 
-public class RequestPredecessorOperation implements Operation {
-    private NodeInfo origin;
+public class RequestPredecessorOperation extends Operation {
 
     public RequestPredecessorOperation(NodeInfo origin) {
-        this.origin = origin;
+        super(origin);
     }
 
     @Override
     public void run(Node currentNode) {
         NodeInfo predecessor = currentNode.getFingerTable().getPredecessor();
-        currentNode.informAbout(origin);
-        RequestPredecessorResultOperation operation = new RequestPredecessorResultOperation(predecessor);
+        RequestPredecessorResultOperation operation = new RequestPredecessorResultOperation(origin, predecessor);
+
         try {
             Mailman.sendOperation(origin, operation);
+            currentNode.informAboutExistence(origin);
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Request predecessor informing about failure.");
+            currentNode.informAboutFailure(origin);
         }
     }
 

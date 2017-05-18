@@ -3,14 +3,13 @@ package server.communication.operations;
 import server.chord.Node;
 import server.chord.NodeInfo;
 
-import static server.utils.Utils.between;
 
-
-public class RequestPredecessorResultOperation implements Operation {
+public class RequestPredecessorResultOperation extends Operation {
 
     private NodeInfo predecessor;
 
-    public RequestPredecessorResultOperation(NodeInfo predecessor) {
+    public RequestPredecessorResultOperation(NodeInfo origin, NodeInfo predecessor) {
+        super(origin);
         this.predecessor = predecessor;
     }
 

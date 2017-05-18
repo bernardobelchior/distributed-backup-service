@@ -3,7 +3,6 @@ package server.utils;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 
 public class SynchronizedFixedLinkedList<T> {
     private final List<T> list;
@@ -23,27 +22,35 @@ public class SynchronizedFixedLinkedList<T> {
     }
 
     public boolean add(T element) {
-        if (list.size() < maxSize) {
-            list.add(element);
-            return true;
-        }
+        if (list.size() >= maxSize)
+            return false;
 
-        return false;
+        list.add(element);
+        return true;
     }
 
-    public ListIterator<T> listIterator() {
-        return list.listIterator();
+    public boolean add(int index, T element) {
+        if (list.size() >= maxSize)
+            return false;
+
+        list.add(index, element);
+        return true;
     }
 
     public void set(int index, T element) {
         list.set(index, element);
     }
 
-    public void popLast() {
-        list.remove(list.size() - 1);
-    }
-
     public boolean isEmpty() {
         return list.isEmpty();
+    }
+
+    public boolean remove(Object object) {
+        System.err.println("Successor removed!!!!! " + object.toString());
+        return list.remove(object);
+    }
+
+    public T last() {
+        return list.get(list.size() - 1);
     }
 }
