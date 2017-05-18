@@ -16,9 +16,7 @@ public class RequestPredecessorOperation implements Operation {
     @Override
     public void run(Node currentNode) {
         NodeInfo predecessor = currentNode.getFingerTable().getPredecessor();
-        currentNode.getFingerTable().updateFingerTable(origin);
-        currentNode.getFingerTable().updateSuccessors(origin);
-        currentNode.getFingerTable().updatePredecessor(origin);
+        currentNode.informAbout(origin);
         RequestPredecessorResultOperation operation = new RequestPredecessorResultOperation(predecessor);
         try {
             Mailman.sendOperation(origin, operation);

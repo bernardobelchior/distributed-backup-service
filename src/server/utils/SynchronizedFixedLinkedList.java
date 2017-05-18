@@ -42,4 +42,8 @@ public class SynchronizedFixedLinkedList<T> {
     public void popLast() {
         list.remove(list.size() - 1);
     }
+
+    public boolean isEmpty() {
+        return list.isEmpty();
+    }
 }

@@ -41,7 +41,7 @@ public class FingerTable {
      * @return true if the key belongs to the node's successor
      */
     public boolean keyBelongsToSuccessor(BigInteger key) {
-        return between(self, fingers[0], key);
+        return fingers[0] != null && between(self, fingers[0], key);
     }
 
 
@@ -113,7 +113,7 @@ public class FingerTable {
      * @param currentNode node the finger table belongs to
      * @throws Exception
      */
-    public void fill(Node currentNode) throws IOException {
+    public void fill(Node currentNode) {
         if (fingers[0] == null)
             return;
 
@@ -137,12 +137,9 @@ public class FingerTable {
 
                     System.out.println("i = " + i);
                     fingerLookup.get(400, TimeUnit.MILLISECONDS);
-
-                    if (fingerLookup.isCancelled() || fingerLookup.isCompletedExceptionally())
-                        throw new IOException("Could not find finger" + i);
                 }
             } catch (TimeoutException | IOException | InterruptedException | ExecutionException e) {
-                throw new IOException("Could not find finger " + i);
+                System.err.println("Could not find finger " + i + ".");
             }
         }
     }
@@ -236,20 +233,23 @@ public class FingerTable {
          * Shift all the nodes in the array a position forwards and
          * Insert the node in the correct position
          */
-        ListIterator<NodeInfo> iterator = successors.listIterator();
-        while (iterator.hasNext()) {
-            NodeInfo successor = iterator.next();
-            if (node.equals(successor))
-                break;
+        synchronized (successors) {
+            ListIterator<NodeInfo> iterator = successors.listIterator();
 
-            int nodeKey = node.getId();
+            while (iterator.hasNext()) {
+                NodeInfo successor = iterator.next();
+                if (node.equals(successor))
+                    return;
 
-            if (between(lowerNode, successor, nodeKey)) {
-                iterator.add(node);
-                break;
+                int nodeKey = node.getId();
+
+                if (between(lowerNode, successor, nodeKey)) {
+                    iterator.add(node);
+                    break;
+                }
+
+                lowerNode = successor;
             }
-
-            lowerNode = successor;
         }
 
         if (successors.size() < NUM_SUCCESSORS)
@@ -261,9 +261,13 @@ public class FingerTable {
         fingers[0] = successors.get(0);
     }
 
-    public void informAboutNode(NodeInfo node) {
+    public void informAbout(NodeInfo node) {
         updateSuccessors(node);
         updateFingerTable(node);
         updatePredecessor(node);
+    }
+
+    public boolean hasSuccessors() {
+        return !successors.isEmpty();
     }
 }

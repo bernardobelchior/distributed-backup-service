@@ -1,16 +1,13 @@
 package server.communication.operations;
 
-import server.chord.FingerTable;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.Mailman;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 
 import static server.chord.DistributedHashTable.MAXIMUM_HOPS;
-import static server.chord.Node.MAX_NODES;
 
 public class LookupOperation implements Operation {
     private BigInteger key;
@@ -28,26 +25,23 @@ public class LookupOperation implements Operation {
 
     @Override
     public void run(Node currentNode) {
-        if(--timeToLive < 0)
+        if (--timeToLive < 0)
             return;
 
-        System.out.println("Looking up key " + /*DatatypeConverter.printHexBinary(key.toByteArray())*/ key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
-
-        FingerTable fingerTable = currentNode.getFingerTable();
+        System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
 
         NodeInfo senderNode = lastNode;
         lastNode = currentNode.getInfo();
 
         try {
-            if (reachedDestination) {
+            if (reachedDestination || !currentNode.hasSuccessors()) {
                 Mailman.sendOperation(origin, new LookupResultOperation(currentNode.getInfo(), key));
 
-                fingerTable.updateFingerTable(origin);
-                fingerTable.updateSuccessors(origin);
-                fingerTable.updateFingerTable(senderNode);
-                fingerTable.updateSuccessors(senderNode);
+                currentNode.informAbout(origin);
+                currentNode.informAbout(senderNode);
                 return;
             }
+
 
             if (currentNode.keyBelongsToSuccessor(key))
                 reachedDestination = true;
@@ -64,11 +58,7 @@ public class LookupOperation implements Operation {
             e.printStackTrace();
         }
 
-        fingerTable.updateFingerTable(origin);
-        fingerTable.updateFingerTable(senderNode);
-        fingerTable.updateSuccessors(origin);
-        fingerTable.updateSuccessors(senderNode);
-
-
+        currentNode.informAbout(origin);
+        currentNode.informAbout(senderNode);
     }
 }

@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
+import static server.chord.FingerTable.NUM_SUCCESSORS;
 import static server.utils.Utils.addToNodeId;
 import static server.utils.Utils.between;
 
@@ -50,7 +51,7 @@ public class Node {
      * @return
      * @throws IOException
      */
-    private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) throws IOException {
+    private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
         /* Check if requested lookup is already being done */
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
 
@@ -60,13 +61,16 @@ public class Node {
         lookupResult = new CompletableFuture<>();
         ongoingLookups.put(key, lookupResult);
 
-        Mailman.sendOperation(nodeToLookup, new LookupOperation(self, key));
+        try {
+            Mailman.sendOperation(nodeToLookup, new LookupOperation(self, key));
+        } catch (IOException e) {
+            lookupResult.completeExceptionally(e);
+        }
 
         return lookupResult;
     }
 
     private CompletableFuture<NodeInfo> requestSucessorPredecessor(NodeInfo successor) throws IOException {
-
         /* Check if the request is already being made */
 
         CompletableFuture<NodeInfo> requestResult = ongoingPredecessorLookup;
@@ -97,7 +101,7 @@ public class Node {
      *
      * @param bootstrapperNode Node that will provide the information with which our finger table will be updated.
      */
-    public boolean bootstrap(NodeInfo bootstrapperNode) throws Exception {
+    public boolean bootstrap(NodeInfo bootstrapperNode) {
 
         /* Get the node's successors */
         if (!findSuccessors(bootstrapperNode))
@@ -113,15 +117,27 @@ public class Node {
 
         /* Get the successor's predecessor, which will be the new node's predecessor */
 
-        CompletableFuture<Void> getPredecessor = requestSucessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
-        getPredecessor.get();
-        return !getPredecessor.isCompletedExceptionally() && !getPredecessor.isCancelled();
+        CompletableFuture<Void> getPredecessor;
+        try {
+            getPredecessor = requestSucessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        try {
+            getPredecessor.get();
+        } catch (CancellationException | ExecutionException | InterruptedException e) {
+            return false;
+        }
+
+        return true;
     }
 
-    private boolean findSuccessors(NodeInfo bootstrapperNode) throws IOException {
+    private boolean findSuccessors(NodeInfo bootstrapperNode) {
         BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
 
-        for (int i = 0; i < FingerTable.NUM_SUCCESSORS; i++) {
+        for (int i = 0; i < NUM_SUCCESSORS; i++) {
             CompletableFuture<NodeInfo> successorLookup = lookupFrom(successorKey, bootstrapperNode);
 
             try {
@@ -134,9 +150,9 @@ public class Node {
             try {
                 successorKey = BigInteger.valueOf(addToNodeId(fingerTable.getNthSuccessor(i).getId(), 1));
             } catch (IndexOutOfBoundsException e) {
-                e.printStackTrace();
-                return false;
-                //FIXME: Should we retry or fail completely?
+                /* This means that there is no Nth successor. As such, we treat it as a normal thing that only
+                 * happens when the network has a number of nodes lower than NUM_SUCCESSORS. */
+                break;
             }
         }
 
@@ -180,7 +196,7 @@ public class Node {
     public void finishedLookup(BigInteger key, NodeInfo targetNode) {
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
         result.complete(targetNode);
-        fingerTable.informAboutNode(targetNode);
+        fingerTable.informAbout(targetNode);
     }
 
     public void finishPredecessorRequest(NodeInfo predecessor) {
@@ -220,6 +236,9 @@ public class Node {
     }
 
     public void stabilizationProtocol() {
+        if (!fingerTable.hasSuccessors())
+            return;
+
         System.out.println("Started Stabilization");
         try {
             stabilizeSuccessor();
@@ -398,5 +417,13 @@ public class Node {
 
     public void finishedPut(BigInteger key, boolean successful) {
         ongoingInsertions.remove(key).complete(successful);
+    }
+
+    public void informAbout(NodeInfo node) {
+        fingerTable.informAbout(node);
+    }
+
+    public boolean hasSuccessors() {
+        return fingerTable.hasSuccessors();
     }
 }
