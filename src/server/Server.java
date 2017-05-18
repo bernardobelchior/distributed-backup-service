@@ -35,7 +35,7 @@ public class Server {
         try {
             LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(node.getDistributedHashTable()));
         } catch (RemoteException e) {
-            e.printStackTrace();
+            System.out.println("Could not connect to rmiregistry. TestApp will not be available on this server.");
         }
 
         try {

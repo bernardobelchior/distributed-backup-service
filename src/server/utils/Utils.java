@@ -1,4 +1,4 @@
-package server;
+package server.utils;
 
 import server.chord.NodeInfo;
 
@@ -51,6 +51,18 @@ public class Utils {
             return keyOwner > lower && keyOwner <= upper;
         else
             return keyOwner > lower || keyOwner <= upper;
+    }
+
+    /**
+     * Check if a given key is between the lower and upper keys in the Chord circle
+     *
+     * @param lower
+     * @param upper
+     * @param key
+     * @return true if the key is between the other two, or equal to the upper key
+     */
+    public static boolean between(NodeInfo lower, NodeInfo upper, int key) {
+        return between(lower.getId(), upper.getId(), key);
     }
 
     /**

@@ -11,6 +11,7 @@ import java.util.concurrent.TimeoutException;
 
 public class DistributedHashTable {
     private static final int OPERATION_TIMEOUT = 5; //In seconds
+    public static final int MAXIMUM_HOPS = 8;
     private final Node self;
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, byte[]> replicatedValues = new ConcurrentHashMap<>();

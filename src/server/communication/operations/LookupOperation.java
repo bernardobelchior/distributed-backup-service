@@ -1,69 +1,71 @@
 package server.communication.operations;
 
-import server.chord.FingerTable;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.Mailman;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 
-import static server.chord.Node.MAX_NODES;
+import static server.chord.DistributedHashTable.MAXIMUM_HOPS;
 
-public class LookupOperation implements Operation {
+public class LookupOperation extends Operation {
     private BigInteger key;
-    private final NodeInfo origin;
     private NodeInfo lastNode;
     private boolean reachedDestination = false;
+    private int timeToLive;
 
     public LookupOperation(NodeInfo origin, BigInteger key) {
-        this.origin = origin;
+        super(origin);
         lastNode = origin;
         this.key = key;
+        timeToLive = MAXIMUM_HOPS;
     }
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Looking up key " + /*DatatypeConverter.printHexBinary(key.toByteArray())*/ key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
+        if (--timeToLive < 0)
+            return;
 
-        FingerTable fingerTable = currentNode.getFingerTable();
+        //System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
 
         NodeInfo senderNode = lastNode;
         lastNode = currentNode.getInfo();
 
-        try {
-            if (reachedDestination) {
-                Mailman.sendOperation(origin, new LookupResultOperation(currentNode.getInfo(), key));
-                System.out.println("Sent reply");
+        if (reachedDestination || !currentNode.hasSuccessors()) {
 
-                fingerTable.updateFingerTable(origin);
-                fingerTable.updateSuccessors(origin);
-                fingerTable.updateFingerTable(senderNode);
-                fingerTable.updateSuccessors(senderNode);
-                System.out.println("21312312");
-                return;
+            try {
+                Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
+                currentNode.informAboutExistence(origin);
+            } catch (IOException e) {
+                System.err.println("Lookup informing about failure.");
+                currentNode.informAboutFailure(origin);
+            } finally {
+                currentNode.informAboutExistence(senderNode);
             }
 
-            if (currentNode.keyBelongsToSuccessor(key))
-                reachedDestination = true;
-
-            NodeInfo nextBestNode = currentNode.getNextBestNode(key);
-
-            if (nextBestNode == null || currentNode.getInfo().equals(nextBestNode))
-                nextBestNode = currentNode.getSuccessor();
-
-            Mailman.sendOperation(nextBestNode, this);
-            System.out.format("Redirected message to next best node, with ID %d\n", nextBestNode.getId());
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            return;
         }
 
-        fingerTable.updateFingerTable(origin);
-        fingerTable.updateFingerTable(senderNode);
-        fingerTable.updateSuccessors(origin);
-        fingerTable.updateSuccessors(senderNode);
+
+        if (currentNode.keyBelongsToSuccessor(key))
+            reachedDestination = true;
+
+        NodeInfo nextBestNode = currentNode.getNextBestNode(key);
+
+        if (nextBestNode == null || currentNode.getInfo().equals(nextBestNode))
+            nextBestNode = currentNode.getSuccessor();
+
+        try {
+            Mailman.sendOperation(nextBestNode, this);
+            //System.out.format("Redirected message to next best node, with ID %d\n", nextBestNode.getId());
+            currentNode.informAboutExistence(origin);
+        } catch (IOException e) {
+            System.out.format("Failure of node with ID %d\n", nextBestNode.getId());
+            currentNode.informAboutFailure(nextBestNode);
+        } finally {
+            currentNode.informAboutExistence(senderNode);
+        }
 
 
     }
