@@ -13,12 +13,27 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.NoSuchAlgorithmException;
 
+import encryptUtils.KeyEncryption.genkeys;
+import encryptUtils.KeyEncryption.encrypt;
+import encryptUtils.KeyEncryption.decrypt;
+import encryptUtils.KeyEncryption.obtainPublicKey;
+import encryptUtils.KeyEncryption.obtainPrivateKey;
+
+import java.security.PrivateKey;
+import java.security.PublicKey;
+
 public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer {
     private final DistributedHashTable dht;
+	
+	
+	private final static String PUBLIC_KEYS_PATH = "Keys/public.key"
+	private final static String PRIVATE_KEYS_PATH = "Keys/private.key"
 
     InitiatorPeer(DistributedHashTable dht) throws RemoteException {
         super();
         this.dht = dht;
+		
+		genkeys(PUBLIC_KEYS_PATH,PRIVATE_KEYS_PATH);
     }
 
     @Override
@@ -46,6 +61,11 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
 
+		File publicKeyFile = new File(publicKeyFile);
+		PublicKey pubKey = obtainPublicKey(PUBLIC_KEYS_PATH);
+		byte[] encryptedFile = null;
+		encryptedFile = encrypt(file, pubKey);
+		
         BigInteger key;
         try {
             key = new BigInteger(Utils.hash(file));

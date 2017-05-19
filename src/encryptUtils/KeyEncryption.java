@@ -45,11 +45,13 @@ public class KeyEncryption{
 	}
 
 
-	public static byte[] encryptMessage(byte[] text, PrivateKey privKey){
+	
+	
+	public static byte[] encrypt(byte[] text, PublicKey pubKey){
 		byte[] cipherText = null;
 		try{
 		final Cipher cipher  = Cipher.getInstance(ALGORITHM);
-		cipher.init(Cipher.ENCRYPT_MODE, privKey);
+		cipher.init(Cipher.ENCRYPT_MODE, pubKey);
 		cipherText = cipher.doFinal(text);
 		} catch(Exception e){
 			e.printStackTrace();
@@ -63,7 +65,7 @@ public class KeyEncryption{
 		       final Cipher cipher = Cipher.getInstance(ALGORITHM);
 
 		       cipher.init(Cipher.DECRYPT_MODE, key);
-		      dectyptedText = cipher.doFinal(text);
+		      decryptedArray = cipher.doFinal(text);
 
 		    } catch (Exception ex) {
 		      ex.printStackTrace();
