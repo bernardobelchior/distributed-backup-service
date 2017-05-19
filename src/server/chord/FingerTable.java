@@ -61,7 +61,7 @@ public class FingerTable {
      */
     public NodeInfo getNextBestNode(BigInteger key) {
 
-        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
+        int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
         for (int i = fingers.length - 1; i >= 0; i--) {
             if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
                 return fingers[i];

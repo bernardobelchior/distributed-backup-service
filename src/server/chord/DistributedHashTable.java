@@ -47,7 +47,9 @@ public class DistributedHashTable {
         CompletableFuture<byte []> get = self.get(key);
 
         try {
-            return get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
+            byte [] value = get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
+            fileManager.saveRestoredFile(key,value);
+            return value;
         } catch (TimeoutException e) {
             e.printStackTrace();
             System.err.println("Operation timed out. Please try again.");

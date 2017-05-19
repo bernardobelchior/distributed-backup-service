@@ -49,6 +49,7 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
         byte [] ret = dht.get(key);
+
          //System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
         if(ret != null)
             return true;
