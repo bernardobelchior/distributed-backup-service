@@ -22,8 +22,10 @@ public class DistributedHashTable {
         this.fileManager = new FileManager(self.getInfo().getId());
     }
 
-    public byte[] get(Object key) {
-        return null;
+    public byte[] getValue(Object key) {
+        byte [] value = localValues.getOrDefault(key, null);
+        return value;
+
     }
 
     public boolean put(BigInteger key, byte[] value) {
@@ -38,6 +40,23 @@ public class DistributedHashTable {
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    public byte [] get (BigInteger key){
+        CompletableFuture<byte []> get = self.get(key);
+
+        try {
+            byte [] value = get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
+            fileManager.saveRestoredFile(key,value);
+            return value;
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            System.err.println("Operation timed out. Please try again.");
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
