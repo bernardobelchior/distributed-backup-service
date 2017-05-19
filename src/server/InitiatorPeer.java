@@ -5,8 +5,6 @@ import server.chord.DistributedHashTable;
 import server.utils.Utils;
 
 import javax.xml.bind.DatatypeConverter;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
@@ -22,29 +20,8 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     }
 
     @Override
-    public boolean backup(String pathName) {
-        FileInputStream fileInputStream;
-        try {
-            fileInputStream = new FileInputStream(pathName);
-        } catch (FileNotFoundException e) {
-            System.err.println("File not found.");
-            return false;
-        }
-
-        byte[] file;
-        try {
-            file = new byte[fileInputStream.available()];
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
-        try {
-            fileInputStream.read(file);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
+    public boolean backup(String pathName) throws IOException {
+        byte[] file = FileManager.loadFile(pathName);
 
         BigInteger key;
         try {

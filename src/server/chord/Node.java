@@ -299,10 +299,11 @@ public class Node {
     }
 
     public void informAboutExistence(NodeInfo node) {
-        fingerTable.informAboutNodeExistence(node);
+        fingerTable.nformAboutExistence(node);
     }
 
     public void informAboutFailure(NodeInfo node) {
+        System.err.println("Node with ID " + node.getId() + " has failed.");
         fingerTable.informAboutFailure(node);
     }
 

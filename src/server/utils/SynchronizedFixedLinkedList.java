@@ -46,7 +46,6 @@ public class SynchronizedFixedLinkedList<T> {
     }
 
     public boolean remove(Object object) {
-        System.err.println("Successor removed!!!!! " + object.toString());
         return list.remove(object);
     }
 
