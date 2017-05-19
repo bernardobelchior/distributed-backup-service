@@ -9,25 +9,27 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static server.utils.Utils.between;
+
 public class DistributedHashTable {
     private static final int OPERATION_TIMEOUT = 5; //In seconds
     public static final int MAXIMUM_HOPS = 8;
-    private final Node self;
+    private final Node node;
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<BigInteger, byte[]> replicatedValues = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, ConcurrentHashMap<BigInteger, byte[]>> replicatedValues = new ConcurrentHashMap<>();
     private final FileManager fileManager;
 
-    public DistributedHashTable(Node self) {
-        this.self = self;
-        this.fileManager = new FileManager(self.getInfo().getId());
+    public DistributedHashTable(Node node) {
+        this.node = node;
+        this.fileManager = new FileManager(node.getInfo().getId());
     }
 
-    public byte[] get(Object key) {
+    public byte[] get(BigInteger key) {
         return null;
     }
 
     public boolean put(BigInteger key, byte[] value) {
-        CompletableFuture<Boolean> put = self.put(key, value);
+        CompletableFuture<Boolean> put = node.put(key, value);
 
         try {
             return put.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
@@ -41,11 +43,11 @@ public class DistributedHashTable {
         }
     }
 
-    public boolean remove(Object key) {
+    public boolean remove(BigInteger key) {
         return false;
     }
 
-    boolean storeLocally(BigInteger key, byte[] value) {
+    boolean backup(BigInteger key, byte[] value) {
         localValues.put(key, value);
 
         try {
@@ -61,18 +63,30 @@ public class DistributedHashTable {
     public String getState() {
         StringBuilder sb = new StringBuilder();
         sb.append("Current Node ID: ");
-        sb.append(self.getInfo().getId());
+        sb.append(node.getInfo().getId());
         sb.append("\n\n");
 
-        sb.append(self.getFingerTable().toString());
+        sb.append(node.toString());
         return sb.toString();
     }
 
-    void backup(BigInteger key, byte[] value) {
-        replicatedValues.put(key, value);
+    void storeReplica(int nodeId, BigInteger key, byte[] value) {
+        ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.getOrDefault(nodeId, new ConcurrentHashMap<>());
+        replicas.put(key, value);
+        replicatedValues.putIfAbsent(nodeId, replicas);
     }
 
-    byte[] getReplicated(BigInteger key) {
-        return replicatedValues.get(key);
+    ConcurrentHashMap<BigInteger, byte[]> getNewPredecessorKeys(NodeInfo newPredecessor) {
+        ConcurrentHashMap<BigInteger, byte[]> predecessorKeys = new ConcurrentHashMap<>();
+        localValues.forEach((key, value) -> {
+            if (!between(newPredecessor, node.getInfo(), key))
+                predecessorKeys.put(key, value);
+        });
+
+        return predecessorKeys;
+    }
+
+    public void remappedKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
+        localValues.putAll(keys);
     }
 }

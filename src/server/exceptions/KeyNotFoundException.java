@@ -1,4 +1,4 @@
-package server.chord;
+package server.exceptions;
 
 public class KeyNotFoundException extends Exception {
 }
