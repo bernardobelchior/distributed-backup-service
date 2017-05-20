@@ -2,7 +2,6 @@ package client;
 
 import common.IInitiatorPeer;
 
-import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -34,10 +33,6 @@ public class TestApp {
                     else
                         System.out.println("File backup failed.");
                 } catch (RemoteException ignored) {
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
                 }
                 break;
             case "RESTORE":

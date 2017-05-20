@@ -36,7 +36,7 @@ public class Mailman {
                 : addOpenConnection(new Connection(nodeInfo));
     }
 
-    public static void sendOperation(NodeInfo nodeInfo, Operation operation) throws IOException, ClassNotFoundException {
+    public static void sendOperation(NodeInfo nodeInfo, Operation operation) throws IOException {
         if (operation == null) {
             System.err.println("Received null object to send.");
             return;

@@ -5,7 +5,6 @@ import server.chord.DistributedHashTable;
 import server.utils.Utils;
 
 import javax.xml.bind.DatatypeConverter;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -14,7 +13,11 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.NoSuchAlgorithmException;
 
-import encryptUtils.KeyEncryption;
+import encryptUtils.KeyEncryption.genkeys;
+import encryptUtils.KeyEncryption.encrypt;
+import encryptUtils.KeyEncryption.decrypt;
+import encryptUtils.KeyEncryption.obtainPublicKey;
+import encryptUtils.KeyEncryption.obtainPrivateKey;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -23,18 +26,18 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     private final DistributedHashTable dht;
 	
 	
-	private final static String PUBLIC_KEYS_PATH = "Keys/public.key";
-	private final static String PRIVATE_KEYS_PATH = "Keys/private.key";
+	private final static String PUBLIC_KEYS_PATH = "Keys/public.key"
+	private final static String PRIVATE_KEYS_PATH = "Keys/private.key"
 
-    InitiatorPeer(DistributedHashTable dht) throws IOException, NoSuchAlgorithmException {
+    InitiatorPeer(DistributedHashTable dht) throws RemoteException {
         super();
         this.dht = dht;
 		
-		KeyEncryption.genkeys(PUBLIC_KEYS_PATH,PRIVATE_KEYS_PATH);
+		genkeys(PUBLIC_KEYS_PATH,PRIVATE_KEYS_PATH);
     }
 
     @Override
-    public boolean backup(String pathName) throws IOException, ClassNotFoundException {
+    public boolean backup(String pathName) {
         FileInputStream fileInputStream;
         try {
             fileInputStream = new FileInputStream(pathName);
@@ -58,10 +61,10 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
 
-        File pubKeyPath = new File(PUBLIC_KEYS_PATH);
-		PublicKey pubKey = KeyEncryption.obtainPublicKey(pubKeyPath);
+		File publicKeyFile = new File(publicKeyFile);
+		PublicKey pubKey = obtainPublicKey(PUBLIC_KEYS_PATH);
 		byte[] encryptedFile = null;
-		encryptedFile = KeyEncryption.encrypt(file, pubKey);
+		encryptedFile = encrypt(file, pubKey);
 		
         BigInteger key;
         try {
@@ -71,7 +74,7 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
 
-        boolean ret = dht.put(key, encryptedFile);
+        boolean ret = dht.put(key, file);
         System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
         return ret;
     }

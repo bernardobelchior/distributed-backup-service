@@ -20,7 +20,7 @@ public class KeyEncryption{
 	private static final int KEYLENGTH = 2048;
 	
 	
-	public static void genkeys(String publicKeyDir, String privateKeyDir) throws NoSuchAlgorithmException, IOException {
+	public static void genkeys(String publicKeyDir, String privateKeyDir){
 		final KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM);
 		keyGen.initialize(KEYLENGTH);
 		
@@ -32,13 +32,13 @@ public class KeyEncryption{
 		
 		if(!pubKeyFile.exists()){
 		pubKeyFile.createNewFile();
-		ObjectOutputStream pubKeyOutputStream = new ObjectOutputStream(new FileOutputStream(pubKeyFile));
+		ObjectOutputStream pubKeyOutputStream = new ObjectOutPutStream(new FileOutputStream(pubKeyFile));
 		pubKeyOutputStream.writeObject(kPair.getPublic());
 		pubKeyOutputStream.close();}
 		
 		if(!privKeyFile.exists()){
 		privKeyFile.createNewFile();
-		ObjectOutputStream privKeyOutputStream = new ObjectOutputStream(new FileOutputStream(privKeyFile));
+		ObjectOutputStream privKeyOutputStream = new ObjectOutPutStream(new FileOutputStream(privKeyFile));
 		privKeyOutputStream.writeObject(kPair.getPrivate());
 		privKeyOutputStream.close();}
 		
@@ -77,18 +77,17 @@ public class KeyEncryption{
 	
 
 
-	public static PublicKey obtainPublicKey(File path) throws FileNotFoundException, IOException, ClassNotFoundException {
+	public static PublicKey obtainPublicKey(File path){
 		ObjectInputStream inputStream = null;
 		inputStream = new ObjectInputStream(new FileInputStream(path));
 		final PublicKey publicKey = (PublicKey) inputStream.readObject();
 		return publicKey;	  
 	}
 	
-	public static PrivateKey obtainPrivateKey(File path)throws FileNotFoundException, IOException, ClassNotFoundException{
+	public static PrivateKey obtainPrivateKey(File path){
 		ObjectInputStream inputStream = null;
 		inputStream = new ObjectInputStream(new FileInputStream(path));
 		final PrivateKey privateKey = (PrivateKey) inputStream.readObject();
-		return privateKey;
 	}
 	
 }

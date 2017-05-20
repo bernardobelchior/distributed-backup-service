@@ -13,7 +13,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class Server {
 
-    public static void main(String... args) throws IOException, NoSuchAlgorithmException {
+    public static void main(String... args) {
         if (args.length != 2 && args.length != 4) {
             System.err.println("Usage:\njava server.Server <access-point> <port> [<node-ip> <node-port>]\n" +
                     "Last two arguments are optional. If not provided, the program will assume this is the first node.");

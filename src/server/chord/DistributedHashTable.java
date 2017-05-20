@@ -4,7 +4,6 @@ import server.FileManager;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -18,7 +17,7 @@ public class DistributedHashTable {
     private final ConcurrentHashMap<BigInteger, byte[]> replicatedValues = new ConcurrentHashMap<>();
     private final FileManager fileManager;
 
-    public DistributedHashTable(Node self) throws IOException, NoSuchAlgorithmException {
+    public DistributedHashTable(Node self) {
         this.self = self;
         this.fileManager = new FileManager(self.getInfo().getId());
     }
@@ -46,7 +45,7 @@ public class DistributedHashTable {
         return false;
     }
 
-    boolean storeLocally(BigInteger key, byte[] value) throws ClassNotFoundException {
+    boolean storeLocally(BigInteger key, byte[] value) {
         localValues.put(key, value);
 
         try {
