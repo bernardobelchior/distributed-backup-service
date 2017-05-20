@@ -58,6 +58,8 @@ public class TestApp {
                     else
                         System.out.println("File deletion failed.");
                 } catch (RemoteException ignored) {
+                }catch (IOException e) {
+                    System.err.println("Could not open file " + pathName);
                 }
                 break;
             case "STATE":

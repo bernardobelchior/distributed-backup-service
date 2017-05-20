@@ -60,8 +60,19 @@ public class DistributedHashTable {
         }
     }
 
-    public boolean remove(Object key) {
-        return false;
+    public boolean remove(BigInteger key) {
+        CompletableFuture<Boolean> remove = self.remove(key);
+
+        try {
+            return remove.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            System.err.println("Operation timed out. Please try again.");
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     boolean storeLocally(BigInteger key, byte[] value) {
@@ -75,6 +86,14 @@ public class DistributedHashTable {
         }
 
         return true;
+    }
+
+    boolean removeLocally(BigInteger key){
+        localValues.remove(key);
+            fileManager.delete(key);
+
+        return true;
+
     }
 
     public String getState() {
