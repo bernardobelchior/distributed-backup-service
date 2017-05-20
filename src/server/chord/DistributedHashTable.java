@@ -23,8 +23,10 @@ public class DistributedHashTable {
         this.fileManager = new FileManager(self.getInfo().getId());
     }
 
-    public byte[] get(Object key) {
-        return null;
+    public byte[] getValue(Object key) {
+        byte [] value = localValues.getOrDefault(key, null);
+        return value;
+
     }
 
     public boolean put(BigInteger key, byte[] value) {
@@ -42,8 +44,36 @@ public class DistributedHashTable {
         }
     }
 
-    public boolean remove(Object key) {
-        return false;
+    public byte [] get (BigInteger key){
+        CompletableFuture<byte []> get = self.get(key);
+
+        try {
+            byte [] value = get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
+            fileManager.saveRestoredFile(key,value);
+            return value;
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            System.err.println("Operation timed out. Please try again.");
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public boolean remove(BigInteger key) {
+        CompletableFuture<Boolean> remove = self.remove(key);
+
+        try {
+            return remove.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            System.err.println("Operation timed out. Please try again.");
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     boolean storeLocally(BigInteger key, byte[] value) throws ClassNotFoundException {
@@ -57,6 +87,14 @@ public class DistributedHashTable {
         }
 
         return true;
+    }
+
+    boolean removeLocally(BigInteger key){
+        localValues.remove(key);
+            fileManager.delete(key);
+
+        return true;
+
     }
 
     public String getState() {

@@ -5,19 +5,18 @@ import server.chord.NodeInfo;
 
 import java.math.BigInteger;
 
-public class LookupResultOperation extends Operation {
-    private final NodeInfo resultNode;
+public class GetResultOperation extends Operation {
     private final BigInteger key;
+    private final byte [] value;
 
-    public LookupResultOperation(NodeInfo origin, NodeInfo resultNode, BigInteger key) {
+    GetResultOperation(NodeInfo origin, BigInteger key, byte [] value) {
         super(origin);
-        this.resultNode = resultNode;
         this.key = key;
+        this.value = value;
     }
 
     @Override
     public void run(Node currentNode) {
-        currentNode.onLookupFinished(key, resultNode);
+        currentNode.onGetFinished(key, value);
     }
-
 }

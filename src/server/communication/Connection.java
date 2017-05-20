@@ -56,7 +56,6 @@ public class Connection {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-            System.out.println("Connection to node " + nodeInfo.getId() + " closed.");
         }
     }
 
@@ -69,8 +68,7 @@ public class Connection {
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
-                System.err.println("Connection to node " + nodeInfo.getId() + " closed.\n" + Mailman.openConnections.toString());
-                e.printStackTrace();
+                currentNode.informAboutFailure(nodeInfo);
                 closeConnection();
                 return;
             }

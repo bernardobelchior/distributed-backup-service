@@ -43,20 +43,32 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
 
-        byte[] file;
+        BigInteger key;
         try {
-            file = new byte[fileInputStream.available()];
-        } catch (IOException e) {
+            key = new BigInteger(Utils.hash(file));
+        } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return false;
         }
 
+        boolean ret = dht.put(key, file);
+        System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
+        return ret;
+    }
+
+    @Override
+    public boolean restore(String pathName) throws IOException{
+
+        byte[] file = FileManager.loadFile(pathName);
+
+        BigInteger key;
         try {
-            fileInputStream.read(file);
-        } catch (IOException e) {
+            key = new BigInteger(Utils.hash(file));
+        } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return false;
         }
+        byte [] ret = dht.get(key);
 
         File pubKeyPath = new File(PUBLIC_KEYS_PATH);
 		PublicKey pubKey = KeyEncryption.obtainPublicKey(pubKeyPath);
@@ -74,16 +86,6 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         boolean ret = dht.put(key, encryptedFile);
         System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
         return ret;
-    }
-
-    @Override
-    public boolean restore(String filename) {
-        return false;
-    }
-
-    @Override
-    public boolean delete(String filename) {
-        return false;
     }
 
     @Override

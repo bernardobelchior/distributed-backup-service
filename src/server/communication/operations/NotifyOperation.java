@@ -11,7 +11,6 @@ public class NotifyOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("Received Notification");
         if (currentNode.getFingerTable().updatePredecessor(origin))
             System.out.println("Notified of new predecessor.\nSetting predecessor to " + origin.getId());
     }
