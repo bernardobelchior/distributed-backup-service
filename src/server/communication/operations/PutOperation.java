@@ -18,7 +18,7 @@ public class PutOperation extends Operation {
     }
 
     @Override
-    public void run(Node currentNode) {
+    public void run(Node currentNode) throws ClassNotFoundException {
         PutResultOperation result = new PutResultOperation(origin, key, currentNode.store(key, value));
 
         try {

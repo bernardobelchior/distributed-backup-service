@@ -40,6 +40,8 @@ public class LookupOperation extends Operation {
             } catch (IOException e) {
                 System.err.println("Lookup informing about failure.");
                 currentNode.informAboutFailure(origin);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
             } finally {
                 currentNode.informAboutExistence(senderNode);
             }
@@ -63,6 +65,8 @@ public class LookupOperation extends Operation {
         } catch (IOException e) {
             System.out.format("Failure of node with ID %d\n", nextBestNode.getId());
             currentNode.informAboutFailure(nextBestNode);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         } finally {
             currentNode.informAboutExistence(senderNode);
         }

@@ -329,6 +329,8 @@ public class FingerTable {
             System.out.println("Sending lookup to " + nodeToLookup);
         } catch (IOException e) {
             lookupResult.completeExceptionally(e);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         return lookupResult;

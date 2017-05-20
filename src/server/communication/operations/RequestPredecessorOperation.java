@@ -23,6 +23,8 @@ public class RequestPredecessorOperation extends Operation {
         } catch (IOException e) {
             System.err.println("Request predecessor informing about failure.");
             currentNode.informAboutFailure(origin);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
     }
 
