@@ -61,7 +61,7 @@ public class FingerTable {
      */
     public NodeInfo getNextBestNode(BigInteger key) {
 
-        int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
+        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
         for (int i = fingers.length - 1; i >= 0; i--) {
             if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
                 return fingers[i];
@@ -139,7 +139,10 @@ public class FingerTable {
                 fingers[index] = fingers[0];
             else {
                 CompletableFuture<Void> fingerLookup = lookup(keyToLookup).thenAcceptAsync(
-                        finger -> setFinger(index, finger),
+                        finger -> {
+                            setFinger(index, finger);
+                            System.err.println("GET FINGER ");
+                        },
                         lookupThreadPool);
 
                 fingerLookup.get(400, TimeUnit.MILLISECONDS);
@@ -161,6 +164,7 @@ public class FingerTable {
      */
     public void updateFingerTable(NodeInfo node) {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
+        System.out.println("Updating finger table with node " + node.getId());
 
         for (int i = 0; i < fingers.length; i++)
             if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent)) {
@@ -264,7 +268,7 @@ public class FingerTable {
             successors.add(node);
     }
 
-    public void nformAboutExistence(NodeInfo node) {
+    public void informAboutNodeExistence(NodeInfo node) {
         updateSuccessors(node);
         updateFingerTable(node);
         updatePredecessor(node);
@@ -275,6 +279,7 @@ public class FingerTable {
     }
 
     public void informAboutFailure(NodeInfo node) {
+        System.err.println("Informed about failure of node " + node);
         informSuccessorsOfFailure(node);
         informFingersOfFailure(node);
         informPredecessorOfFailure(node);
@@ -321,6 +326,7 @@ public class FingerTable {
 
         try {
             Mailman.sendOperation(nodeToLookup, new LookupOperation(self, key));
+            System.out.println("Sending lookup to " + nodeToLookup);
         } catch (IOException e) {
             lookupResult.completeExceptionally(e);
         } catch (ClassNotFoundException e) {
@@ -345,7 +351,7 @@ public class FingerTable {
      */
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
         CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
-        nformAboutExistence(targetNode);
+        informAboutNodeExistence(targetNode);
         result.complete(targetNode);
     }
 

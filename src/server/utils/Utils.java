@@ -45,7 +45,7 @@ public class Utils {
      * @return true if the key is between the other two, or equal to the upper key
      */
     public static boolean between(int lower, int upper, BigInteger key) {
-        int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
+        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
 
         if (lower < upper)
             return keyOwner > lower && keyOwner <= upper;
