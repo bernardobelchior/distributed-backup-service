@@ -41,11 +41,8 @@ public class FileManager {
         return BASE_DIR + "/" + STORED_FILES_DIR;
     }
 
-    public void saveFile(BigInteger key, byte[] content) throws IOException, ClassNotFoundException {
-		File privateKeyFile = new File(PRIVATE_KEYS_PATH);
-		PrivateKey privKey = KeyEncryption.obtainPrivateKey(privateKeyFile);
-		byte[] finalContent = null;
-		finalContent = KeyEncryption.decrypt(content, privKey);
+
+
 		
 		
 		
@@ -58,6 +55,16 @@ public class FileManager {
         File file = new File(getStoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
         FileOutputStream fileOutputStream = new FileOutputStream(file);
 
+        File privateKeyFile = new File(PRIVATE_KEYS_PATH);
+        PrivateKey privKey = null;
+        try {
+            privKey = KeyEncryption.obtainPrivateKey(privateKeyFile);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        byte[] finalContent = null;
+        finalContent = KeyEncryption.decrypt(content, privKey);
+
         fileOutputStream.write(finalContent);
         fileOutputStream.flush();
         fileOutputStream.close();
@@ -67,7 +74,17 @@ public class FileManager {
         File file = new File(getRestoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
         FileOutputStream fileOutputStream = new FileOutputStream(file);
 
-        fileOutputStream.write(content);
+        File privateKeyFile = new File(PRIVATE_KEYS_PATH);
+        PrivateKey privKey = null;
+        try {
+            privKey = KeyEncryption.obtainPrivateKey(privateKeyFile);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        byte[] finalContent = null;
+        finalContent = KeyEncryption.decrypt(content, privKey);
+
+        fileOutputStream.write(finalContent);
         fileOutputStream.flush();
         fileOutputStream.close();
     }
@@ -76,10 +93,19 @@ public class FileManager {
         FileInputStream fileInputStream = new FileInputStream(pathName);
 
         byte[] file = new byte[fileInputStream.available()];
-
         fileInputStream.read(file);
 
-        return file;
+        File publicKeyFile = new File(PUBLIC_KEYS_PATH);
+        PublicKey pubKey = null;
+        try {
+            pubKey = KeyEncryption.obtainPublicKey(publicKeyFile);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        byte[] finalFile = null;
+        finalFile = KeyEncryption.encrypt(file, pubKey);
+
+        return finalFile;
     }
 
     public void delete(BigInteger key) {
