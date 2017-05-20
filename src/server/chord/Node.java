@@ -347,6 +347,8 @@ public class Node {
             e.printStackTrace();
             get.completeExceptionally(e);
             return get;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         return get;
@@ -381,6 +383,8 @@ public class Node {
             e.printStackTrace();
             remove.completeExceptionally(e);
             return remove;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         return remove;
