@@ -22,7 +22,7 @@ public class Node {
     private CompletableFuture<NodeInfo> ongoingPredecessorLookup;
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingDeletes = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<BigInteger, CompletableFuture<byte []>> ongoingGetOperations = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<BigInteger, CompletableFuture<byte[]>> ongoingGetOperations = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
 
@@ -259,7 +259,9 @@ public class Node {
         dht.backup(key, value);
     }
 
-    public byte [] getValue(BigInteger key){return dht.getValue(key);}
+    public byte[] getValue(BigInteger key) {
+        return dht.getValue(key);
+    }
 
     public DistributedHashTable getDistributedHashTable() {
         return dht;
@@ -316,8 +318,8 @@ public class Node {
         fingerTable.onLookupFinished(key, targetNode);
     }
 
-    public CompletableFuture<byte []> get(BigInteger key) {
-        CompletableFuture<byte []> get = new CompletableFuture<>();
+    public CompletableFuture<byte[]> get(BigInteger key) {
+        CompletableFuture<byte[]> get = new CompletableFuture<>();
 
         if (ongoingGetOperations.putIfAbsent(key, get) != null) {
             get.completeExceptionally(new Exception("Get operation already ongoing."));
@@ -329,7 +331,7 @@ public class Node {
             destination = fingerTable.lookup(key).get();
         } catch (InterruptedException | ExecutionException e) {
             fingerTable.onLookupFailed(key);
-            System.err.println("Put operation failed. Please try again...");
+            System.err.println("Get operation failed. Please try again...");
             e.printStackTrace();
             get.completeExceptionally(e);
             return get;
@@ -363,7 +365,7 @@ public class Node {
             destination = fingerTable.lookup(key).get();
         } catch (InterruptedException | ExecutionException e) {
             fingerTable.onLookupFailed(key);
-            System.err.println("Put operation failed. Please try again...");
+            System.err.println("Remove operation failed. Please try again...");
             e.printStackTrace();
             remove.completeExceptionally(e);
             return remove;
@@ -385,8 +387,7 @@ public class Node {
         ongoingDeletes.remove(key).complete(successful);
     }
 
-    public boolean removeValue(BigInteger key) {  if (!dht.removeLocally(key))
-        return false;
-    return true;
+    public boolean removeValue(BigInteger key) {
+        return dht.removeLocally(key);
     }
 }
