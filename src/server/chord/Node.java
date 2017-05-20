@@ -1,10 +1,7 @@
 package server.chord;
 
 import server.communication.Mailman;
-import server.communication.operations.NotifyOperation;
-import server.communication.operations.PutOperation;
-import server.communication.operations.ReplicationOperation;
-import server.communication.operations.RequestPredecessorOperation;
+import server.communication.operations.*;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -24,6 +21,8 @@ public class Node {
     private final DistributedHashTable dht;
     private CompletableFuture<NodeInfo> ongoingPredecessorLookup;
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingDeletes = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<BigInteger, CompletableFuture<byte []>> ongoingGetOperations = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
 
@@ -264,6 +263,8 @@ public class Node {
         dht.backup(key, value);
     }
 
+    public byte [] getValue(BigInteger key){return dht.getValue(key);}
+
     public DistributedHashTable getDistributedHashTable() {
         return dht;
     }
@@ -305,10 +306,11 @@ public class Node {
     }
 
     public void informAboutExistence(NodeInfo node) {
-        fingerTable.informAboutNodeExistence(node);
+        fingerTable.nformAboutExistence(node);
     }
 
     public void informAboutFailure(NodeInfo node) {
+        System.err.println("Node with ID " + node.getId() + " has failed.");
         fingerTable.informAboutFailure(node);
     }
 
@@ -318,5 +320,79 @@ public class Node {
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
         fingerTable.onLookupFinished(key, targetNode);
+    }
+
+    public CompletableFuture<byte []> get(BigInteger key) {
+        CompletableFuture<byte []> get = new CompletableFuture<>();
+
+        if (ongoingGetOperations.putIfAbsent(key, get) != null) {
+            get.completeExceptionally(new Exception("Get operation already ongoing."));
+            return get;
+        }
+
+        NodeInfo destination;
+        try {
+            destination = fingerTable.lookup(key).get();
+        } catch (InterruptedException | ExecutionException e) {
+            fingerTable.onLookupFailed(key);
+            System.err.println("Put operation failed. Please try again...");
+            e.printStackTrace();
+            get.completeExceptionally(e);
+            return get;
+        }
+
+        try {
+            Mailman.sendOperation(destination, new GetOperation(self, key));
+        } catch (IOException e) {
+            e.printStackTrace();
+            get.completeExceptionally(e);
+            return get;
+        }
+
+        return get;
+    }
+
+    public void onGetFinished(BigInteger key, byte[] value) {
+        ongoingGetOperations.remove(key).complete(value);
+    }
+
+    public CompletableFuture<Boolean> remove(BigInteger key) {
+        CompletableFuture<Boolean> remove = new CompletableFuture<>();
+
+        if (ongoingDeletes.putIfAbsent(key, remove) != null) {
+            remove.completeExceptionally(new Exception("Get operation already ongoing."));
+            return remove;
+        }
+
+        NodeInfo destination;
+        try {
+            destination = fingerTable.lookup(key).get();
+        } catch (InterruptedException | ExecutionException e) {
+            fingerTable.onLookupFailed(key);
+            System.err.println("Put operation failed. Please try again...");
+            e.printStackTrace();
+            remove.completeExceptionally(e);
+            return remove;
+        }
+
+        try {
+            Mailman.sendOperation(destination, new RemoveOperation(self, key));
+        } catch (IOException e) {
+            e.printStackTrace();
+            remove.completeExceptionally(e);
+            return remove;
+        }
+
+        return remove;
+    }
+
+
+    public void onRemoveFinished(BigInteger key, boolean successful) {
+        ongoingDeletes.remove(key).complete(successful);
+    }
+
+    public boolean removeValue(BigInteger key) {  if (!dht.removeLocally(key))
+        return false;
+    return true;
     }
 }

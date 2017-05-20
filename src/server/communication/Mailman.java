@@ -30,7 +30,6 @@ public class Mailman {
     }
 
     private static Connection getOrOpenConnection(NodeInfo nodeInfo) throws IOException {
-        System.out.println("Connection to " + nodeInfo + " is open: " + isConnectionOpen(nodeInfo));
         return isConnectionOpen(nodeInfo)
                 ? openConnections.get(nodeInfo)
                 : addOpenConnection(new Connection(nodeInfo));
@@ -81,6 +80,5 @@ public class Mailman {
 
     public static void connectionClosed(NodeInfo connection) {
         openConnections.remove(connection);
-        System.err.println(openConnections.toString());
     }
 }

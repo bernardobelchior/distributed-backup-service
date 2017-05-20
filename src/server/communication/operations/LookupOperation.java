@@ -27,8 +27,6 @@ public class LookupOperation extends Operation {
         if (--timeToLive < 0)
             return;
 
-        //System.out.println("Looking up key " + key + " from node " + origin.getId() + ". Last node was: " + lastNode.getId() + ". Reached destination: " + reachedDestination);
-
         NodeInfo senderNode = lastNode;
         lastNode = currentNode.getInfo();
 
@@ -38,7 +36,6 @@ public class LookupOperation extends Operation {
                 Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
                 currentNode.informAboutExistence(origin);
             } catch (IOException e) {
-                System.err.println("Lookup informing about failure.");
                 currentNode.informAboutFailure(origin);
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
@@ -48,7 +45,6 @@ public class LookupOperation extends Operation {
 
             return;
         }
-
 
         if (currentNode.keyBelongsToSuccessor(key))
             reachedDestination = true;
@@ -60,7 +56,6 @@ public class LookupOperation extends Operation {
 
         try {
             Mailman.sendOperation(nextBestNode, this);
-            //System.out.format("Redirected message to next best node, with ID %d\n", nextBestNode.getId());
             currentNode.informAboutExistence(origin);
         } catch (IOException e) {
             System.out.format("Failure of node with ID %d\n", nextBestNode.getId());
