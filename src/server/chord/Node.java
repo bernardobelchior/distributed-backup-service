@@ -37,7 +37,7 @@ public class Node {
         dht = new DistributedHashTable(this);
     }
 
-    private CompletableFuture<NodeInfo> requestSuccessorPredecessor(NodeInfo successor) throws IOException {
+    private CompletableFuture<NodeInfo> requestSuccessorPredecessor(NodeInfo successor) throws IOException, ClassNotFoundException {
         /* Check if the request is already being made */
 
         CompletableFuture<NodeInfo> requestResult = ongoingPredecessorLookup;
@@ -84,12 +84,14 @@ public class Node {
 
         /* Get the successor's predecessor, which will be the new node's predecessor */
 
-        CompletableFuture<Void> getPredecessor;
+        CompletableFuture<Void> getPredecessor = null;
         try {
             getPredecessor = requestSuccessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
         } catch (IOException e) {
             e.printStackTrace();
             return false;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         try {
@@ -168,7 +170,7 @@ public class Node {
     }
 
 
-    public boolean store(BigInteger key, byte[] value) {
+    public boolean store(BigInteger key, byte[] value) throws ClassNotFoundException {
         if (!dht.storeLocally(key, value))
             return false;
 
@@ -234,6 +236,8 @@ public class Node {
             Mailman.sendOperation(successor, notification);
         } catch (IOException e) {
             System.err.println("Unable to notify successor");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
     }
 
@@ -289,6 +293,8 @@ public class Node {
             e.printStackTrace();
             put.completeExceptionally(e);
             return put;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         return put;

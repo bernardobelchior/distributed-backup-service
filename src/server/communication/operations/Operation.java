@@ -12,7 +12,7 @@ public abstract class Operation implements Serializable {
         this.origin = origin;
     }
 
-    public abstract void run(Node currentNode);
+    public abstract void run(Node currentNode) throws ClassNotFoundException;
 
     public NodeInfo getOrigin() {
         return this.origin;
