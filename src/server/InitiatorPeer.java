@@ -57,8 +57,20 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     }
 
     @Override
-    public boolean delete(String filename) {
-        return false;
+    public boolean delete(String pathName) throws IOException {
+        byte[] file = FileManager.loadFile(pathName);
+
+        BigInteger key;
+        try {
+            key = new BigInteger(Utils.hash(file));
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        boolean ret = dht.remove(key);
+        System.out.println("Filename " + pathName + " removed with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
+        return ret;
     }
 
     @Override

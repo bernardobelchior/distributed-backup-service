@@ -21,6 +21,7 @@ public class Node {
     private final DistributedHashTable dht;
     private CompletableFuture<NodeInfo> ongoingPredecessorLookup;
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingDeletes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, CompletableFuture<byte []>> ongoingGetOperations = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
@@ -347,5 +348,45 @@ public class Node {
 
     public void onGetFinished(BigInteger key, byte[] value) {
         ongoingGetOperations.remove(key).complete(value);
+    }
+
+    public CompletableFuture<Boolean> remove(BigInteger key) {
+        CompletableFuture<Boolean> remove = new CompletableFuture<>();
+
+        if (ongoingDeletes.putIfAbsent(key, remove) != null) {
+            remove.completeExceptionally(new Exception("Get operation already ongoing."));
+            return remove;
+        }
+
+        NodeInfo destination;
+        try {
+            destination = fingerTable.lookup(key).get();
+        } catch (InterruptedException | ExecutionException e) {
+            fingerTable.onLookupFailed(key);
+            System.err.println("Put operation failed. Please try again...");
+            e.printStackTrace();
+            remove.completeExceptionally(e);
+            return remove;
+        }
+
+        try {
+            Mailman.sendOperation(destination, new RemoveOperation(self, key));
+        } catch (IOException e) {
+            e.printStackTrace();
+            remove.completeExceptionally(e);
+            return remove;
+        }
+
+        return remove;
+    }
+
+
+    public void onRemoveFinished(BigInteger key, boolean successful) {
+        ongoingDeletes.remove(key).complete(successful);
+    }
+
+    public boolean removeValue(BigInteger key) {  if (!dht.removeLocally(key))
+        return false;
+    return true;
     }
 }

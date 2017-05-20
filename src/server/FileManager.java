@@ -62,4 +62,26 @@ public class FileManager {
 
         return file;
     }
+
+    public void delete(BigInteger key) {
+
+        File file = new File(getStoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
+
+        file.delete();
+        /*
+        Serve para eliminar pastas mais tarde pode ser util
+         */
+        /*File[] files = folder.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    delete(f);
+                } else {
+                    f.delete();
+                }
+            }
+        }*/
+
+    }
+
 }
