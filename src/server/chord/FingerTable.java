@@ -63,7 +63,7 @@ public class FingerTable {
      */
     public NodeInfo getNextBestNode(BigInteger key) {
 
-        int keyOwner = Integer.remainderUnsigned(key.intValueExact(), MAX_NODES);
+        int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
         for (int i = fingers.length - 1; i >= 0; i--) {
             if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
                 return fingers[i];
@@ -165,14 +165,8 @@ public class FingerTable {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
 
         for (int i = 0; i < fingers.length; i++)
-            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent)) {
-
-                if (i == 0) {
-                    setSuccessor(node, 0);
-                    setFinger(0, node);
-                } else
-                    fingers[i] = node;
-            }
+            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent))
+                fingers[i] = node;
     }
 
     /**
@@ -186,10 +180,6 @@ public class FingerTable {
 
     public NodeInfo getNthSuccessor(int index) throws IndexOutOfBoundsException {
         return successors.get(index);
-    }
-
-    public void setSuccessor(NodeInfo successor, int index) {
-        successors.set(index, successor);
     }
 
     /**

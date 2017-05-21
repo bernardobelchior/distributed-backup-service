@@ -9,6 +9,7 @@ import java.math.BigInteger;
 
 public class FileManager {
     private final static String STORED_FILES_DIR = "StoredFiles/";
+    private static final String RESTORED_FILES_DIR = "RestoredFiles/";
     private final String BASE_DIR;
 
     public FileManager(int nodeId) {
@@ -21,15 +22,30 @@ public class FileManager {
 
         File storedFiles = new File(getStoredFilesDir());
         storedFiles.mkdir();
+        File restoredFiles = new File(getRestoredFilesDir());
+        restoredFiles.mkdir();
     }
 
     private String getStoredFilesDir() {
         return BASE_DIR + "/" + STORED_FILES_DIR;
     }
 
+    private String getRestoredFilesDir() {
+        return BASE_DIR + "/" + RESTORED_FILES_DIR;
+    }
+
     public void saveFile(BigInteger key, byte[] content) throws IOException {
         createDirectories();
         File file = new File(getStoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+
+        fileOutputStream.write(content);
+        fileOutputStream.flush();
+        fileOutputStream.close();
+    }
+    public void saveRestoredFile(BigInteger key, byte[] content) throws IOException {
+        createDirectories();
+        File file = new File(getRestoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
         FileOutputStream fileOutputStream = new FileOutputStream(file);
 
         fileOutputStream.write(content);
@@ -46,4 +62,26 @@ public class FileManager {
 
         return file;
     }
+
+    public void delete(BigInteger key) {
+
+        File file = new File(getStoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
+
+        file.delete();
+        /*
+        Serve para eliminar pastas mais tarde pode ser util
+         */
+        /*File[] files = folder.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    delete(f);
+                } else {
+                    f.delete();
+                }
+            }
+        }*/
+
+    }
+
 }
