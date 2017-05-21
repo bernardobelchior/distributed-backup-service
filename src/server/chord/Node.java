@@ -10,11 +10,13 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
+import static server.chord.FingerTable.LOOKUP_TIMEOUT;
 import static server.utils.Utils.addToNodeId;
 
 public class Node {
     public static final int MAX_NODES = 128;
     public static final int REPLICATION_DEGREE = 2;
+
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
@@ -23,6 +25,8 @@ public class Node {
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingDeletes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, CompletableFuture<byte[]>> ongoingGetOperations = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<Integer, ConcurrentHashMap<BigInteger, byte[]>> replicatedValues = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
 
@@ -190,7 +194,7 @@ public class Node {
         CompletableFuture<NodeInfo> findSuccessor = fingerTable.lookup(successorKey);
 
         try {
-            findSuccessor.get(400, TimeUnit.MILLISECONDS);
+            findSuccessor.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | ExecutionException e) {
             fingerTable.onLookupFailed(successorKey);
             return false;
@@ -224,7 +228,7 @@ public class Node {
                 fingerTable::updatePredecessor,
                 threadPool);
         try {
-            predecessorLookup.get(400, TimeUnit.MILLISECONDS);
+            predecessorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             System.err.println("Predecessor not responding, deleting reference");
             fingerTable.onLookupFailed(keyEquivalent);
@@ -233,7 +237,9 @@ public class Node {
     }
 
     public void storeReplica(NodeInfo node, BigInteger key, byte[] value) {
-        dht.storeReplica(node.getId(), key, value);
+        ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.getOrDefault(node.getId(), new ConcurrentHashMap<>());
+        replicas.put(key, value);
+        replicatedValues.putIfAbsent(node.getId(), replicas);
     }
 
     public byte[] getLocalValue(BigInteger key) {
@@ -309,7 +315,19 @@ public class Node {
 
     @Override
     public String toString() {
-        return fingerTable.toString();
+        StringBuilder sb = new StringBuilder();
+        sb.append(fingerTable.toString());
+
+        sb.append("\n\nReplicated keys:\n");
+        sb.append("NodeID\t\tKey\n");
+        replicatedValues.forEach((nodeId, keys) -> keys.forEach((key, value) -> {
+            sb.append(nodeId);
+            sb.append("\t");
+            sb.append(DatatypeConverter.printHexBinary(key.toByteArray()));
+            sb.append("\n");
+        }));
+
+        return sb.toString();
     }
 
     public void remappedKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {

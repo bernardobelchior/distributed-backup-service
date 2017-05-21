@@ -13,11 +13,10 @@ import java.util.concurrent.TimeoutException;
 import static server.utils.Utils.between;
 
 public class DistributedHashTable {
-    private static final int OPERATION_TIMEOUT = 5; //In seconds
+    private static final int OPERATION_TIMEOUT = 1; //In seconds
     public static final int MAXIMUM_HOPS = 8;
     private final Node node;
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Integer, ConcurrentHashMap<BigInteger, byte[]>> replicatedValues = new ConcurrentHashMap<>();
     private final FileManager fileManager;
 
     public DistributedHashTable(Node node) {
@@ -44,9 +43,7 @@ public class DistributedHashTable {
         CompletableFuture<byte[]> get = node.get(key);
 
         try {
-            byte[] value = get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
-            fileManager.saveRestoredFile(key, value);
-            return value;
+            return get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             e.printStackTrace();
             System.err.println("Get operation for key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " timed out. Please try again.");
@@ -100,13 +97,13 @@ public class DistributedHashTable {
         sb.append("\n\n");
 
         sb.append(node.toString());
-        return sb.toString();
-    }
+        sb.append("\n\nKeys stored:\n");
+        localValues.forEach((key, value) -> {
+            sb.append(DatatypeConverter.printHexBinary(key.toByteArray()));
+            sb.append("\n");
+        });
 
-    void storeReplica(int nodeId, BigInteger key, byte[] value) {
-        ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.getOrDefault(nodeId, new ConcurrentHashMap<>());
-        replicas.put(key, value);
-        replicatedValues.putIfAbsent(nodeId, replicas);
+        return sb.toString();
     }
 
     ConcurrentHashMap<BigInteger, byte[]> getNewPredecessorKeys(NodeInfo newPredecessor) {
