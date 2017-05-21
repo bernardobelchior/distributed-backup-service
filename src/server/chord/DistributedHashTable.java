@@ -2,6 +2,7 @@ package server.chord;
 
 import server.FileManager;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
@@ -9,33 +10,28 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static server.utils.Utils.between;
+
 public class DistributedHashTable {
-    private static final int OPERATION_TIMEOUT = 5; //In seconds
+    private static final int OPERATION_TIMEOUT = 1; //In seconds
     public static final int MAXIMUM_HOPS = 8;
-    private final Node self;
+    private final Node node;
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<BigInteger, byte[]> replicatedValues = new ConcurrentHashMap<>();
     private final FileManager fileManager;
 
-    public DistributedHashTable(Node self) {
-        this.self = self;
-        this.fileManager = new FileManager(self.getInfo().getId());
-    }
-
-    public byte[] getValue(Object key) {
-        byte [] value = localValues.getOrDefault(key, null);
-        return value;
-
+    public DistributedHashTable(Node node) {
+        this.node = node;
+        this.fileManager = new FileManager(node.getInfo().getId());
     }
 
     public boolean put(BigInteger key, byte[] value) {
-        CompletableFuture<Boolean> put = self.put(key, value);
+        CompletableFuture<Boolean> put = node.put(key, value);
 
         try {
             return put.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             e.printStackTrace();
-            System.err.println("Operation timed out. Please try again.");
+            System.err.println("Put operation for key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " timed out. Please try again.");
             return false;
         } catch (Exception e) {
             e.printStackTrace();
@@ -43,16 +39,14 @@ public class DistributedHashTable {
         }
     }
 
-    public byte [] get (BigInteger key){
-        CompletableFuture<byte []> get = self.get(key);
+    public byte[] get(BigInteger key) {
+        CompletableFuture<byte[]> get = node.get(key);
 
         try {
-            byte [] value = get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
-            fileManager.saveRestoredFile(key,value);
-            return value;
+            return get.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             e.printStackTrace();
-            System.err.println("Operation timed out. Please try again.");
+            System.err.println("Get operation for key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " timed out. Please try again.");
             return null;
         } catch (Exception e) {
             e.printStackTrace();
@@ -61,13 +55,13 @@ public class DistributedHashTable {
     }
 
     public boolean remove(BigInteger key) {
-        CompletableFuture<Boolean> remove = self.remove(key);
+        CompletableFuture<Boolean> remove = node.remove(key);
 
         try {
             return remove.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             e.printStackTrace();
-            System.err.println("Operation timed out. Please try again.");
+            System.err.println("Remove operation for key " + DatatypeConverter.printHexBinary(key.toByteArray()) + "timed out. Please try again.");
             return false;
         } catch (Exception e) {
             e.printStackTrace();
@@ -75,7 +69,7 @@ public class DistributedHashTable {
         }
     }
 
-    boolean storeLocally(BigInteger key, byte[] value) {
+    boolean backup(BigInteger key, byte[] value) {
         localValues.put(key, value);
 
         try {
@@ -88,9 +82,9 @@ public class DistributedHashTable {
         return true;
     }
 
-    boolean removeLocally(BigInteger key){
+    boolean removeLocally(BigInteger key) {
         localValues.remove(key);
-            fileManager.delete(key);
+        fileManager.delete(key);
 
         return true;
 
@@ -99,18 +93,34 @@ public class DistributedHashTable {
     public String getState() {
         StringBuilder sb = new StringBuilder();
         sb.append("Current Node ID: ");
-        sb.append(self.getInfo().getId());
+        sb.append(node.getInfo().getId());
         sb.append("\n\n");
 
-        sb.append(self.getFingerTable().toString());
+        sb.append(node.toString());
+        sb.append("\n\nKeys stored:\n");
+        localValues.forEach((key, value) -> {
+            sb.append(DatatypeConverter.printHexBinary(key.toByteArray()));
+            sb.append("\n");
+        });
+
         return sb.toString();
     }
 
-    void backup(BigInteger key, byte[] value) {
-        replicatedValues.put(key, value);
+    ConcurrentHashMap<BigInteger, byte[]> getNewPredecessorKeys(NodeInfo newPredecessor) {
+        ConcurrentHashMap<BigInteger, byte[]> predecessorKeys = new ConcurrentHashMap<>();
+        localValues.forEach((key, value) -> {
+            if (!between(newPredecessor, node.getInfo(), key))
+                predecessorKeys.put(key, value);
+        });
+
+        return predecessorKeys;
     }
 
-    byte[] getReplicated(BigInteger key) {
-        return replicatedValues.get(key);
+    void remappedKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
+        localValues.putAll(keys);
+    }
+
+    public byte[] getLocalValue(BigInteger key) {
+        return localValues.get(key);
     }
 }

@@ -37,10 +37,6 @@ public class SynchronizedFixedLinkedList<T> {
         return true;
     }
 
-    public void set(int index, T element) {
-        list.set(index, element);
-    }
-
     public boolean isEmpty() {
         return list.isEmpty();
     }

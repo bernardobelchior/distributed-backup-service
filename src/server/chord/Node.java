@@ -3,18 +3,20 @@ package server.chord;
 import server.communication.Mailman;
 import server.communication.operations.*;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
-import static server.chord.FingerTable.NUM_SUCCESSORS;
+import static server.chord.FingerTable.LOOKUP_TIMEOUT;
 import static server.utils.Utils.addToNodeId;
 
 public class Node {
     public static final int MAX_NODES = 128;
     public static final int REPLICATION_DEGREE = 2;
+
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
@@ -23,6 +25,8 @@ public class Node {
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingDeletes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BigInteger, CompletableFuture<byte[]>> ongoingGetOperations = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<Integer, ConcurrentHashMap<BigInteger, byte[]>> replicatedValues = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
 
@@ -54,10 +58,6 @@ public class Node {
         return self;
     }
 
-    public FingerTable getFingerTable() {
-        return fingerTable;
-    }
-
     public boolean keyBelongsToSuccessor(BigInteger key) {
         return fingerTable.keyBelongsToSuccessor(key);
     }
@@ -70,7 +70,7 @@ public class Node {
     public boolean bootstrap(NodeInfo bootstrapperNode) {
 
         /* Get the node's successors */
-        if (!findSuccessors(bootstrapperNode))
+        if (!fingerTable.findSuccessors(bootstrapperNode))
             return false;
 
         /*
@@ -95,31 +95,6 @@ public class Node {
             getPredecessor.get();
         } catch (CancellationException | ExecutionException | InterruptedException e) {
             return false;
-        }
-
-        return true;
-    }
-
-    private boolean findSuccessors(NodeInfo bootstrapperNode) {
-        BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
-
-        for (int i = 0; i < NUM_SUCCESSORS; i++) {
-            CompletableFuture<NodeInfo> successorLookup = fingerTable.lookupFrom(successorKey, bootstrapperNode);
-
-            try {
-                successorLookup.get();
-            } catch (InterruptedException | ExecutionException e) {
-                /* If the lookup did not complete correctly */
-                return false;
-            }
-
-            try {
-                successorKey = BigInteger.valueOf(addToNodeId(fingerTable.getNthSuccessor(i).getId(), 1));
-            } catch (IndexOutOfBoundsException e) {
-                /* This means that there is no Nth successor. As such, we treat it as a normal thing that only
-                 * happens when the network has a number of nodes lower than NUM_SUCCESSORS. */
-                break;
-            }
         }
 
         return true;
@@ -166,23 +141,29 @@ public class Node {
         stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
     }
 
-
     public boolean store(BigInteger key, byte[] value) {
-        if (!dht.storeLocally(key, value))
+        if (!dht.backup(key, value))
             return false;
 
-        //FIXME: Use REPLICATION_DEGREE when list of R successors is done.
-        NodeInfo successor = fingerTable.getSuccessor();
+        return ensureReplication(key, value);
+    }
 
-        if (successor.equals(self)) {
-            //FIXME:
-            System.err.println("I got no successor. What do I do?");
-        } else {
+    private boolean ensureReplication(BigInteger key, byte[] value) {
+        NodeInfo node;
+        for (int i = 1; i < REPLICATION_DEGREE; i++) {
             try {
-                Mailman.sendOperation(successor, new ReplicationOperation(self, key, value));
+                node = fingerTable.getNthSuccessor(i);
+            } catch (IndexOutOfBoundsException e) {
+                System.err.println("Replication of file with key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " failed." +
+                        "Current replication degree is " + i + ".");
+                return false;
+            }
+
+            try {
+                Mailman.sendOperation(node, new ReplicationOperation(self, key, value));
             } catch (IOException e) {
-                System.err.println("Could not start the replication operation.");
-                e.printStackTrace();
+                informAboutFailure(node);
+                i--;
             }
         }
 
@@ -213,7 +194,7 @@ public class Node {
         CompletableFuture<NodeInfo> findSuccessor = fingerTable.lookup(successorKey);
 
         try {
-            findSuccessor.get(400, TimeUnit.MILLISECONDS);
+            findSuccessor.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | ExecutionException e) {
             fingerTable.onLookupFailed(successorKey);
             return false;
@@ -247,7 +228,7 @@ public class Node {
                 fingerTable::updatePredecessor,
                 threadPool);
         try {
-            predecessorLookup.get(400, TimeUnit.MILLISECONDS);
+            predecessorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             System.err.println("Predecessor not responding, deleting reference");
             fingerTable.onLookupFailed(keyEquivalent);
@@ -255,23 +236,25 @@ public class Node {
         }
     }
 
-    public void backup(BigInteger key, byte[] value) {
-        dht.backup(key, value);
+    public void storeReplica(NodeInfo node, BigInteger key, byte[] value) {
+        ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.getOrDefault(node.getId(), new ConcurrentHashMap<>());
+        replicas.put(key, value);
+        replicatedValues.putIfAbsent(node.getId(), replicas);
     }
 
-    public byte[] getValue(BigInteger key) {
-        return dht.getValue(key);
+    public byte[] getLocalValue(BigInteger key) {
+        return dht.getLocalValue(key);
     }
 
     public DistributedHashTable getDistributedHashTable() {
         return dht;
     }
 
-    public CompletableFuture<Boolean> put(BigInteger key, byte[] value) {
+    CompletableFuture<Boolean> put(BigInteger key, byte[] value) {
         CompletableFuture<Boolean> put = new CompletableFuture<>();
 
         if (ongoingInsertions.putIfAbsent(key, put) != null) {
-            put.completeExceptionally(new Exception("Put operation already ongoing."));
+            put.completeExceptionally(new Exception("Put operation with same key as " + DatatypeConverter.printHexBinary(key.toByteArray()) + " already ongoing."));
             return put;
         }
 
@@ -291,7 +274,6 @@ public class Node {
         } catch (IOException e) {
             e.printStackTrace();
             put.completeExceptionally(e);
-            return put;
         }
 
         return put;
@@ -301,13 +283,25 @@ public class Node {
         ongoingInsertions.remove(key).complete(successful);
     }
 
+    public boolean updatePredecessor(NodeInfo newPredecessor) {
+        if (fingerTable.updatePredecessor(newPredecessor)) {
+            dht.getNewPredecessorKeys(newPredecessor);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     public void informAboutExistence(NodeInfo node) {
-        fingerTable.nformAboutExistence(node);
+        fingerTable.updateSuccessors(node);
+        fingerTable.updateFingerTable(node);
     }
 
     public void informAboutFailure(NodeInfo node) {
         System.err.println("Node with ID " + node.getId() + " has failed.");
-        fingerTable.informAboutFailure(node);
+        fingerTable.informSuccessorsOfFailure(node);
+        fingerTable.informFingersOfFailure(node);
+        fingerTable.informPredecessorOfFailure(node);
     }
 
     public boolean hasSuccessors() {
@@ -316,6 +310,28 @@ public class Node {
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
         fingerTable.onLookupFinished(key, targetNode);
+        informAboutExistence(targetNode);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(fingerTable.toString());
+
+        sb.append("\n\nReplicated keys:\n");
+        sb.append("NodeID\t\tKey\n");
+        replicatedValues.forEach((nodeId, keys) -> keys.forEach((key, value) -> {
+            sb.append(nodeId);
+            sb.append("\t");
+            sb.append(DatatypeConverter.printHexBinary(key.toByteArray()));
+            sb.append("\n");
+        }));
+
+        return sb.toString();
+    }
+
+    public void remappedKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
+        dht.remappedKeys(keys);
     }
 
     public CompletableFuture<byte[]> get(BigInteger key) {
