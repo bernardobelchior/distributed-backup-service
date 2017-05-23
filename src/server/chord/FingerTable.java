@@ -5,6 +5,7 @@ import server.communication.operations.LookupOperation;
 import server.exceptions.KeyNotFoundException;
 import server.utils.SynchronizedFixedLinkedList;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.*;
@@ -32,7 +33,7 @@ public class FingerTable {
         successors = new SynchronizedFixedLinkedList<>(NUM_SUCCESSORS);
 
         for (int i = 0; i < fingers.length; i++)
-            fingers[i] = self;
+            setFinger(i, self);
     }
 
     /**
@@ -40,6 +41,7 @@ public class FingerTable {
      * @param successor
      */
     public void setFinger(int index, NodeInfo successor) {
+        //System.out.println(Integer.remainderUnsigned((int) (self.getId() + Math.pow(2, index)), MAX_NODES) + " set to " + successor.getId());
         fingers[index] = successor;
     }
 
@@ -53,7 +55,7 @@ public class FingerTable {
 
         int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
         for (int i = fingers.length - 1; i >= 0; i--) {
-            if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
+            if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) /*&& !fingers[i].equals(self)*/)
                 return fingers[i];
         }
 
@@ -70,18 +72,20 @@ public class FingerTable {
                 : predecessor.getId());
         sb.append("\n\n");
         sb.append("Finger Table:\n");
-        sb.append("Index\t\t\tID\n");
+        sb.append("Index\tKey\t\tID\n");
 
         for (int i = 0; i < fingers.length; i++) {
             sb.append(i);
-            sb.append("\t\t\t");
+            sb.append("\t\t");
+            sb.append(Integer.remainderUnsigned((int) (self.getId() + Math.pow(2, i)), MAX_NODES));
+            sb.append("\t\t");
             sb.append(fingers[i] == null
                     ? "null"
                     : fingers[i].getId());
             sb.append("\n");
         }
 
-        sb.append("Successors:\n");
+        sb.append("\nSuccessors:\n");
         sb.append("Index\t\t\tID\n");
 
         for (int i = 0; i < successors.size(); i++) {
@@ -99,7 +103,7 @@ public class FingerTable {
     /**
      * Fills the node's finger table
      */
-    public void fill() {
+    void fill() {
         if (!hasSuccessors())
             return;
 
@@ -115,7 +119,7 @@ public class FingerTable {
         /* Check if the finger belongs to the successors. If it does, then we don't need to look it up. */
         for (int i = 0; i < successors.size(); i++) {
             if (between(self, successors.get(i), keyToLookup)) {
-                fingers[index] = successors.get(i);
+                setFinger(index, successors.get(i));
                 return true;
             }
         }
@@ -128,7 +132,7 @@ public class FingerTable {
             fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | InterruptedException | ExecutionException e) {
             onLookupFailed(keyToLookup);
-            fingers[index] = self;
+            setFinger(index, self);
             return false;
         }
 
@@ -145,7 +149,7 @@ public class FingerTable {
 
         for (int i = 0; i < fingers.length; i++)
             if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent))
-                fingers[i] = node;
+                setFinger(i, node);
     }
 
     /**
@@ -269,7 +273,7 @@ public class FingerTable {
      * @return
      * @throws IOException
      */
-    CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
+    private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
         /* Check if requested lookup is already being done */
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
 
@@ -295,7 +299,7 @@ public class FingerTable {
             return lookupFrom(key, getNextBestNode(key));
     }
 
-    boolean keyBelongsToSuccessor(BigInteger key) {
+    public boolean keyBelongsToSuccessor(BigInteger key) {
         return between(self, getSuccessor(), key);
     }
 

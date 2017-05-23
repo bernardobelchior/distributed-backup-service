@@ -22,7 +22,7 @@ public class LookupOperation extends Operation {
         this.key = key;
         timeToLive = MAXIMUM_HOPS;
 
-        if (fingerTable.getSuccessor().equals(targetNode))
+        if (fingerTable.keyBelongsToSuccessor(key) && fingerTable.getSuccessor().equals(targetNode))
             reachedDestination = true;
     }
 

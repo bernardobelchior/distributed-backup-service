@@ -47,7 +47,6 @@ public class Connection {
         try {
             Operation operation = ((Operation) inputStream.readObject());
             this.nodeInfo = operation.getOrigin();
-            System.out.println("Origin: " + nodeInfo);
             Mailman.addOpenConnection(this);
             operation.run(currentNode);
         } catch (ClassNotFoundException | IOException e) {

@@ -15,7 +15,7 @@ import static server.utils.Utils.addToNodeId;
 
 public class Node {
     public static final int MAX_NODES = 128;
-    public static final int REPLICATION_DEGREE = 2;
+    private static final int REPLICATION_DEGREE = 2;
 
 
     private final NodeInfo self;
@@ -31,7 +31,7 @@ public class Node {
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
 
     /**
-     * @param address
+     * @param address Address of this server
      * @param port    Port to start the service in
      */
     public Node(InetAddress address, int port) throws IOException, NoSuchAlgorithmException {
