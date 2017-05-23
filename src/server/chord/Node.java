@@ -230,7 +230,9 @@ public class Node {
         try {
             predecessorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            e.printStackTrace();
             System.err.println("Predecessor not responding, deleting reference");
+            Mailman.state();
             fingerTable.onLookupFailed(keyEquivalent);
             fingerTable.setPredecessor(null);
         }
@@ -303,10 +305,6 @@ public class Node {
         fingerTable.informSuccessorsOfFailure(node);
         fingerTable.informFingersOfFailure(node);
         fingerTable.informPredecessorOfFailure(node);
-    }
-
-    public boolean hasSuccessors() {
-        return fingerTable.hasSuccessors();
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {

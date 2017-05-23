@@ -5,11 +5,15 @@ import server.chord.NodeInfo;
 import server.communication.Mailman;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class Server {
 
@@ -20,6 +24,8 @@ public class Server {
             return;
         }
         int port = Integer.parseUnsignedInt(args[1]);
+
+        System.out.println(getOwnAddress(port));
 
         Node node;
         try {
@@ -70,5 +76,37 @@ public class Server {
 
         System.out.println("Joined the network successfully.");
         node.initializeStabilization();
+    }
+
+    private static InetAddress getOwnAddress(int port) {
+        CompletableFuture<InetAddress> wait = new CompletableFuture<>();
+        try {
+            InetAddress mcastaddr = InetAddress.getByName("225.0.0.0");
+            MulticastSocket multicastSocket = new MulticastSocket(port);
+            multicastSocket.joinGroup(mcastaddr);
+
+            wait = CompletableFuture.supplyAsync(() -> {
+                DatagramPacket packet = new DatagramPacket(new byte[1], 1);
+                try {
+                    multicastSocket.receive(packet);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                multicastSocket.close();
+                return packet.getAddress();
+            });
+
+            multicastSocket.send(new DatagramPacket(new byte[1], 1, mcastaddr, port));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            return wait.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 }

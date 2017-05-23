@@ -16,7 +16,7 @@ import static server.utils.Utils.between;
 public class FingerTable {
     public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
     public static final int NUM_SUCCESSORS = 5;
-    static final int LOOKUP_TIMEOUT = 400; // In milliseconds
+    static final int LOOKUP_TIMEOUT = 2000; // In milliseconds
 
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
@@ -125,7 +125,7 @@ public class FingerTable {
                     finger -> setFinger(index, finger),
                     lookupThreadPool);
 
-            fingerLookup.get(400, TimeUnit.MILLISECONDS);
+            fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | InterruptedException | ExecutionException e) {
             onLookupFailed(keyToLookup);
             fingers[index] = self;
