@@ -41,8 +41,6 @@ public class TestApp {
                 } catch (RemoteException ignored) {
                 } catch (IOException e) {
                     e.printStackTrace();
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
                 }
                 break;
             case "RESTORE":

@@ -17,14 +17,13 @@ import java.security.PublicKey;
 public class FileManager {
     private final static String STORED_FILES_DIR = "StoredFiles/";
 	//Não sei se é assim - Retirar se necessário
-	private final static String PUBLIC_KEYS_PATH = "../Keys/public.key";
-	private final static String PRIVATE_KEYS_PATH = "../Keys/private.key";
+	private final static String PUBLIC_KEYS_PATH = "Keys/public.key";
+	private final static String PRIVATE_KEYS_PATH = "Keys/private.key";
     private static final String RESTORED_FILES_DIR = "RestoredFiles/";
     private final String BASE_DIR;
 
     public FileManager(int nodeId) throws IOException, NoSuchAlgorithmException {
         BASE_DIR = String.valueOf(nodeId);
-        System.out.println(PUBLIC_KEYS_PATH);
         KeyEncryption.genkeys(PUBLIC_KEYS_PATH,PRIVATE_KEYS_PATH);
         
     }
@@ -94,7 +93,17 @@ public class FileManager {
     public static void saveFile(String pathName, byte[] content) throws IOException {
         FileOutputStream fileOutputStream = new FileOutputStream(pathName);
 
-        fileOutputStream.write(content);
+        File privateKeyFile = new File(PRIVATE_KEYS_PATH);
+        PrivateKey privKey = null;
+        try {
+            privKey = KeyEncryption.obtainPrivateKey(privateKeyFile);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        byte[] finalContent = null;
+        finalContent = KeyEncryption.decrypt(content, privKey);
+
+        fileOutputStream.write(finalContent);
         fileOutputStream.flush();
         fileOutputStream.close();
     }

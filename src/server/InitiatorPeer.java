@@ -31,7 +31,7 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     }
 
     @Override
-    public boolean backup(String pathName) throws IOException, ClassNotFoundException {
+    public boolean backup(String pathName) throws IOException {
         byte[] file = FileManager.loadFile(pathName);
 
         BigInteger key;
