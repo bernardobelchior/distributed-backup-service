@@ -293,6 +293,7 @@ public class Node {
     }
 
     public void informAboutExistence(NodeInfo node) {
+        fingerTable.updatePredecessor(node);
         fingerTable.updateSuccessors(node);
         fingerTable.updateFingerTable(node);
     }

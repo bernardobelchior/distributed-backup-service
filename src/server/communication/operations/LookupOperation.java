@@ -1,5 +1,6 @@
 package server.communication.operations;
 
+import server.chord.FingerTable;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.Mailman;
@@ -15,11 +16,14 @@ public class LookupOperation extends Operation {
     private boolean reachedDestination = false;
     private int timeToLive;
 
-    public LookupOperation(NodeInfo origin, BigInteger key) {
+    public LookupOperation(FingerTable fingerTable, NodeInfo origin, BigInteger key, NodeInfo targetNode) {
         super(origin);
         lastNode = origin;
         this.key = key;
         timeToLive = MAXIMUM_HOPS;
+
+        if (fingerTable.getSuccessor().equals(targetNode))
+            reachedDestination = true;
     }
 
     @Override
@@ -30,8 +34,7 @@ public class LookupOperation extends Operation {
         NodeInfo senderNode = lastNode;
         lastNode = currentNode.getInfo();
 
-        if (reachedDestination || !currentNode.hasSuccessors()) {
-
+        if (reachedDestination) {
             try {
                 Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
                 currentNode.informAboutExistence(origin);
@@ -49,7 +52,7 @@ public class LookupOperation extends Operation {
 
         NodeInfo nextBestNode = currentNode.getNextBestNode(key);
 
-        if (nextBestNode == null || currentNode.getInfo().equals(nextBestNode))
+        if (currentNode.getInfo().equals(nextBestNode))
             nextBestNode = currentNode.getSuccessor();
 
         try {
@@ -61,7 +64,5 @@ public class LookupOperation extends Operation {
         } finally {
             currentNode.informAboutExistence(senderNode);
         }
-
-
     }
 }
