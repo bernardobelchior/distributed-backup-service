@@ -17,6 +17,6 @@ public class ReplicationOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.backup(key, value);
+        currentNode.storeReplica(origin, key, value);
     }
 }

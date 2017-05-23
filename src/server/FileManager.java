@@ -33,8 +33,6 @@ public class FileManager {
 
         File storedFiles = new File(getStoredFilesDir());
         storedFiles.mkdir();
-        File restoredFiles = new File(getRestoredFilesDir());
-        restoredFiles.mkdir();
     }
 
     private String getStoredFilesDir() {
@@ -69,10 +67,6 @@ public class FileManager {
         fileOutputStream.flush();
         fileOutputStream.close();
     }
-    public void saveRestoredFile(BigInteger key, byte[] content) throws IOException {
-        createDirectories();
-        File file = new File(getRestoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
-        FileOutputStream fileOutputStream = new FileOutputStream(file);
 
         File privateKeyFile = new File(PRIVATE_KEYS_PATH);
         PrivateKey privKey = null;
@@ -108,25 +102,17 @@ public class FileManager {
         return finalFile;
     }
 
+    public static void saveFile(String pathName, byte[] content) throws IOException {
+        FileOutputStream fileOutputStream = new FileOutputStream(pathName);
+
+        fileOutputStream.write(content);
+        fileOutputStream.flush();
+        fileOutputStream.close();
+    }
+
     public void delete(BigInteger key) {
-
         File file = new File(getStoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
-
         file.delete();
-        /*
-        Serve para eliminar pastas mais tarde pode ser util
-         */
-        /*File[] files = folder.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                if (f.isDirectory()) {
-                    delete(f);
-                } else {
-                    f.delete();
-                }
-            }
-        }*/
-
     }
 
 }

@@ -9,10 +9,11 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 public class TestApp {
-    public static void main(String... args) {
+    public static void main(String... args) throws RemoteException {
         String peerAccessPoint = args[0];
         String operation = args[1].toUpperCase();
         String pathName;
+        String hexKey;
 
         IInitiatorPeer initiatorPeer;
 
@@ -26,6 +27,10 @@ public class TestApp {
 
         switch (operation) {
             case "BACKUP":
+                if (args.length != 3) {
+                    System.err.println("Invalid number of arguments for operation BACKUP.");
+                    return;
+                }
                 pathName = args[2];
 
                 try {
@@ -41,34 +46,36 @@ public class TestApp {
                 }
                 break;
             case "RESTORE":
-                pathName = args[2];
+                if (args.length != 4) {
+                    System.err.println("Invalid number of arguments for operation RESTORE.");
+                    return;
+                }
+
+                hexKey = args[2];
+                pathName = args[3];
                 try {
-                    if (initiatorPeer.restore(pathName))
+                    if (initiatorPeer.restore(hexKey, pathName))
                         System.out.println("File successfully restored.");
                     else
                         System.out.println("File recovery failed.");
                 } catch (RemoteException ignored) {
-                }catch (IOException e) {
+                } catch (IOException e) {
                     System.err.println("Could not open file " + pathName);
                 }
                 break;
             case "DELETE":
-                pathName = args[2];
-                try {
-                    if (initiatorPeer.delete(pathName))
-                        System.out.println("File deletion successful.");
-                    else
-                        System.out.println("File deletion failed.");
-                } catch (RemoteException ignored) {
-                }catch (IOException e) {
-                    System.err.println("Could not open file " + pathName);
+                if (args.length != 3) {
+                    System.err.println("Invalid number of arguments for operation DELETE.");
+                    return;
                 }
+                hexKey = args[2];
+                if (initiatorPeer.delete(hexKey))
+                    System.out.println("File deletion successful.");
+                else
+                    System.out.println("File deletion failed.");
                 break;
             case "STATE":
-                try {
-                    System.out.println(initiatorPeer.state());
-                } catch (RemoteException ignored) {
-                }
+                System.out.println(initiatorPeer.state());
                 break;
             default:
                 System.out.println("Unrecognized option " + operation + ".");

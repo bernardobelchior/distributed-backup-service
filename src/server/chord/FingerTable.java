@@ -2,6 +2,7 @@ package server.chord;
 
 import server.communication.Mailman;
 import server.communication.operations.LookupOperation;
+import server.exceptions.KeyNotFoundException;
 import server.utils.SynchronizedFixedLinkedList;
 
 import java.io.IOException;
@@ -15,6 +16,7 @@ import static server.utils.Utils.between;
 public class FingerTable {
     public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
     public static final int NUM_SUCCESSORS = 5;
+    static final int LOOKUP_TIMEOUT = 400; // In milliseconds
 
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
@@ -163,14 +165,8 @@ public class FingerTable {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
 
         for (int i = 0; i < fingers.length; i++)
-            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent)) {
-
-                if (i == 0) {
-                    setSuccessor(node, 0);
-                    setFinger(0, node);
-                } else
-                    fingers[i] = node;
-            }
+            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent))
+                fingers[i] = node;
     }
 
     /**
@@ -184,10 +180,6 @@ public class FingerTable {
 
     public NodeInfo getNthSuccessor(int index) throws IndexOutOfBoundsException {
         return successors.get(index);
-    }
-
-    public void setSuccessor(NodeInfo successor, int index) {
-        successors.set(index, successor);
     }
 
     /**
@@ -264,35 +256,23 @@ public class FingerTable {
             successors.add(node);
     }
 
-    public void nformAboutExistence(NodeInfo node) {
-        updateSuccessors(node);
-        updateFingerTable(node);
-        updatePredecessor(node);
-    }
-
     public boolean hasSuccessors() {
         return !successors.isEmpty();
     }
 
-    public void informAboutFailure(NodeInfo node) {
-        informSuccessorsOfFailure(node);
-        informFingersOfFailure(node);
-        informPredecessorOfFailure(node);
-    }
-
-    private void informFingersOfFailure(NodeInfo node) {
+    void informFingersOfFailure(NodeInfo node) {
         for (int i = fingers.length - 1; i >= 0; i--)
             if (fingers[i].equals(node))
                 getFinger(i);
     }
 
 
-    private void informPredecessorOfFailure(NodeInfo node) {
+    void informPredecessorOfFailure(NodeInfo node) {
         if (predecessor.equals(node))
             predecessor = null;
     }
 
-    private void informSuccessorsOfFailure(NodeInfo node) {
+    void informSuccessorsOfFailure(NodeInfo node) {
         if (successors.remove(node)) {
             if (successors.isEmpty())
                 lookup(BigInteger.valueOf(addToNodeId(self.getId(), 1)));
@@ -330,7 +310,7 @@ public class FingerTable {
         return lookupResult;
     }
 
-    public CompletableFuture<NodeInfo> lookup(BigInteger key) {
+    CompletableFuture<NodeInfo> lookup(BigInteger key) {
         if (keyBelongsToSuccessor(key))
             return lookupFrom(key, getSuccessor());
         else
@@ -343,14 +323,36 @@ public class FingerTable {
      * @param key        key that was searched
      * @param targetNode node responsible for the key
      */
-    public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
-        CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
-        nformAboutExistence(targetNode);
-        result.complete(targetNode);
+    void onLookupFinished(BigInteger key, NodeInfo targetNode) {
+        ongoingLookups.remove(key).complete(targetNode);
     }
 
-    public void onLookupFailed(BigInteger key) {
-        CompletableFuture<NodeInfo> result = ongoingLookups.remove(key);
-        result.completeExceptionally(new KeyNotFoundException());
+    void onLookupFailed(BigInteger key) {
+        ongoingLookups.remove(key).completeExceptionally(new KeyNotFoundException());
+    }
+
+    boolean findSuccessors(NodeInfo bootstrapperNode) {
+        BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
+
+        for (int i = 0; i < NUM_SUCCESSORS; i++) {
+            CompletableFuture<NodeInfo> successorLookup = lookupFrom(successorKey, bootstrapperNode);
+
+            try {
+                successorLookup.get();
+            } catch (InterruptedException | ExecutionException e) {
+                /* If the lookup did not complete correctly */
+                return false;
+            }
+
+            try {
+                successorKey = BigInteger.valueOf(addToNodeId(getNthSuccessor(i).getId(), 1));
+            } catch (IndexOutOfBoundsException e) {
+                /* This means that there is no Nth successor. As such, we treat it as a normal thing that only
+                 * happens when the network has a number of nodes lower than NUM_SUCCESSORS. */
+                break;
+            }
+        }
+
+        return true;
     }
 }

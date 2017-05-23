@@ -14,7 +14,7 @@ public class RequestPredecessorOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        NodeInfo predecessor = currentNode.getFingerTable().getPredecessor();
+        NodeInfo predecessor = currentNode.getPredecessor();
         RequestPredecessorResultOperation operation = new RequestPredecessorResultOperation(origin, predecessor);
 
         try {

@@ -18,7 +18,7 @@ public class GetOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        GetResultOperation result = new GetResultOperation(origin, key, currentNode.getValue(key));
+        GetResultOperation result = new GetResultOperation(origin, key, currentNode.getLocalValue(key));
 
         try {
             Mailman.sendOperation(origin, result);

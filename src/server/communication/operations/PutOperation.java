@@ -19,7 +19,7 @@ public class PutOperation extends Operation {
 
     @Override
     public void run(Node currentNode) throws ClassNotFoundException {
-        PutResultOperation result = new PutResultOperation(origin, key, currentNode.store(key, value));
+        PutResultOperation result = new PutResultOperation(currentNode.getInfo(), key, currentNode.store(key, value));
 
         try {
             Mailman.sendOperation(origin, result);

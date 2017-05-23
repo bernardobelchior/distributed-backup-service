@@ -51,40 +51,22 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
 
 
     @Override
-    public boolean restore(String pathName) throws IOException{
+    public boolean restore(String hexKey, String filename) throws IOException {
+        BigInteger key = new BigInteger(DatatypeConverter.parseHexBinary(hexKey));
+        byte[] content = dht.get(key);
 
-        byte[] file = FileManager.loadFile(pathName);
+        if (content != null)
+            FileManager.saveFile(filename, content);
 
-        BigInteger key;
-        try {
-            key = new BigInteger(Utils.hash(file));
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return false;
-        }
-        byte [] ret = dht.get(key);
-
-        //System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
-        if(ret != null)
-            return true;
-        return false;
-
+        System.out.println("File stored with key " + hexKey + " restored successfully.");
+        return content != null;
     }
 
     @Override
-    public boolean delete(String pathName) throws IOException {
-        byte[] file = FileManager.loadFile(pathName);
-
-        BigInteger key;
-        try {
-            key = new BigInteger(Utils.hash(file));
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+    public boolean delete(String hexKey) {
+        BigInteger key = new BigInteger(DatatypeConverter.parseHexBinary(hexKey));
         boolean ret = dht.remove(key);
-        System.out.println("Filename " + pathName + " removed with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
+        System.out.println("File stored with key " + hexKey + " deleted successfully.");
         return ret;
     }
 
