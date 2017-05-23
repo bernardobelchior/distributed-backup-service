@@ -167,7 +167,10 @@ public class Node {
             } catch (IOException e) {
                 informAboutFailure(node);
                 i--;
-            }
+            } catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         }
 
         return true;
@@ -279,7 +282,10 @@ public class Node {
         } catch (IOException e) {
             e.printStackTrace();
             put.completeExceptionally(e);
-        }
+        } catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
         return put;
     }

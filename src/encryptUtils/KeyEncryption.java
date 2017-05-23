@@ -30,6 +30,7 @@ public class KeyEncryption{
 		
 		File privKeyFile = new File(privateKeyDir);
 		
+		
 		if(!pubKeyFile.exists()){
 		pubKeyFile.createNewFile();
 		ObjectOutputStream pubKeyOutputStream = new ObjectOutputStream(new FileOutputStream(pubKeyFile));

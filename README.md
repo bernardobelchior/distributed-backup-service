@@ -29,7 +29,7 @@ rmiregistry
 
 To run the first server, use the following command (with the provided stores):
 ```
-java -Djavax.net.ssl.keyStore=keystore.keys -Djavax.net.ssl.keyStorePassword=123456 -Djavax.net.ssl.trustStore=truststore.keys - Djavax.net.ssl.trustStorePassword=123456 server.Server <peer-access-point> <port-number> [<peer-ip-address> <peer-port-number>
+java -Djavax.net.ssl.keyStore=keystore.keys -Djavax.net.ssl.keyStorePassword=123456 -Djavax.net.ssl.trustStore=truststore.keys -Djavax.net.ssl.trustStorePassword=123456 server.Server <peer-access-point> <port-number> [<peer-ip-address> <peer-port-number>
 ```
 The peer access point is the name to connect to with a TestApp. The port number identifies where the server will open its socket in. 
 The peer IP address and port number must not be specified on the first peer of the network and must be specified on all others. It is used to start the process of joining the network.
