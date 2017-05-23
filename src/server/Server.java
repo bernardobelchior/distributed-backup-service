@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.security.NoSuchAlgorithmException;
@@ -24,12 +23,18 @@ public class Server {
             return;
         }
         int port = Integer.parseUnsignedInt(args[1]);
+        InetAddress address;
 
-        System.out.println(getOwnAddress(port));
+        try {
+            address = getOwnAddress(port);
+        } catch (ExecutionException | InterruptedException e) {
+            System.err.println("Could not get own address.");
+            return;
+        }
 
         Node node;
         try {
-            node = new Node(port);
+            node = new Node(address, port);
         } catch (IOException | NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.err.println("Could not create node, aborting...");
@@ -44,23 +49,10 @@ public class Server {
             System.out.println("Could not connect to rmiregistry. TestApp will not be available on this server.");
         }
 
-        try {
-            System.out.println("Node running on " + InetAddress.getLocalHost().getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
+        System.out.println("Node running on " + address.getHostAddress() + ":" + port + " with id " + Integer.toUnsignedString(node.getInfo().getId()) + " and access point " + args[0] + ".");
 
         /* Joining an existing network */
         if (args.length == 4) {
-            InetAddress address;
-
-            try {
-                address = InetAddress.getByName(args[2]);
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-                return;
-            }
-
             int bootstrapPort = Integer.parseUnsignedInt(args[3]);
 
             try {
@@ -78,7 +70,7 @@ public class Server {
         node.initializeStabilization();
     }
 
-    private static InetAddress getOwnAddress(int port) {
+    private static InetAddress getOwnAddress(int port) throws ExecutionException, InterruptedException {
         CompletableFuture<InetAddress> wait = new CompletableFuture<>();
         try {
             InetAddress mcastaddr = InetAddress.getByName("225.0.0.0");
@@ -87,11 +79,13 @@ public class Server {
 
             wait = CompletableFuture.supplyAsync(() -> {
                 DatagramPacket packet = new DatagramPacket(new byte[1], 1);
+
                 try {
                     multicastSocket.receive(packet);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+
                 multicastSocket.close();
                 return packet.getAddress();
             });
@@ -101,12 +95,7 @@ public class Server {
             e.printStackTrace();
         }
 
-        try {
-            return wait.get();
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-        }
+        return wait.get();
 
-        return null;
     }
 }

@@ -61,12 +61,10 @@ public class Mailman {
         }
 
         serverSocket.setNeedClientAuth(true);
-        System.out.println(serverSocket.getLocalPort());
 
         while (true) {
             try {
                 SSLSocket socket = (SSLSocket) serverSocket.accept();
-                System.err.println("Received connection from: " + socket.getRemoteSocketAddress() + " to " + socket.getLocalSocketAddress());
                 new Connection(socket, currentNode, connectionsThreadPool);
             } catch (IOException e) {
                 e.printStackTrace();

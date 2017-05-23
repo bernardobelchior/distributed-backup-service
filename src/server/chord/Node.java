@@ -31,10 +31,11 @@ public class Node {
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
 
     /**
-     * @param port Port to start the service in
+     * @param address
+     * @param port    Port to start the service in
      */
-    public Node(int port) throws IOException, NoSuchAlgorithmException {
-        self = new NodeInfo(InetAddress.getLocalHost(), port);
+    public Node(InetAddress address, int port) throws IOException, NoSuchAlgorithmException {
+        self = new NodeInfo(address, port);
         fingerTable = new FingerTable(self);
         ongoingPredecessorLookup = null;
         dht = new DistributedHashTable(this);

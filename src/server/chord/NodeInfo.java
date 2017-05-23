@@ -6,8 +6,8 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
-import static server.utils.Utils.hash;
 import static server.chord.Node.MAX_NODES;
+import static server.utils.Utils.hash;
 
 public class NodeInfo implements Serializable {
 
@@ -53,7 +53,7 @@ public class NodeInfo implements Serializable {
 
     @Override
     public String toString() {
-        return "ID: " + id + "\tIP Address: " + address.toString() + "\tPort: " + port;
+        return "ID: " + id + "\tIP Address: " + address.getHostAddress() + "\tPort: " + port;
     }
 
     @Override
