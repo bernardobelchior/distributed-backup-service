@@ -18,6 +18,7 @@ public class RemoveOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
+        currentNode.removeValue(key);
         RemoveResultOperation result = new RemoveResultOperation(origin, key, currentNode.removeValue(key));
 
         try {

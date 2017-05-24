@@ -17,6 +17,6 @@ public class RemoveResultOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.onRemoveFinished(key, successful);
+        currentNode.ongoingDeletes.operationFinished(key, successful);
     }
 }

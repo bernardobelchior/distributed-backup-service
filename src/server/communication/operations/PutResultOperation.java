@@ -17,6 +17,6 @@ public class PutResultOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.onPutFinished(key, successful);
+        currentNode.ongoingPuts.operationFinished(key, successful);
     }
 }

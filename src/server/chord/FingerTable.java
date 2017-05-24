@@ -5,7 +5,6 @@ import server.communication.operations.LookupOperation;
 import server.exceptions.KeyNotFoundException;
 import server.utils.SynchronizedFixedLinkedList;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.concurrent.*;
@@ -19,11 +18,12 @@ public class FingerTable {
     public static final int NUM_SUCCESSORS = 5;
     static final int LOOKUP_TIMEOUT = 2000; // In milliseconds
 
+    private final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
+
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
     private final SynchronizedFixedLinkedList<NodeInfo> successors;
     private final NodeInfo self;
-    private final ConcurrentHashMap<BigInteger, CompletableFuture<NodeInfo>> ongoingLookups = new ConcurrentHashMap<>();
     private final ExecutorService lookupThreadPool = Executors.newFixedThreadPool(10);
 
     public FingerTable(NodeInfo self) {
@@ -41,7 +41,6 @@ public class FingerTable {
      * @param successor
      */
     public void setFinger(int index, NodeInfo successor) {
-        //System.out.println(Integer.remainderUnsigned((int) (self.getId() + Math.pow(2, index)), MAX_NODES) + " set to " + successor.getId());
         fingers[index] = successor;
     }
 
@@ -275,14 +274,12 @@ public class FingerTable {
      */
     private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
         /* Check if requested lookup is already being done */
-        CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
+        CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
 
         if (lookupResult != null)
             return lookupResult;
 
-        lookupResult = new CompletableFuture<>();
-        ongoingLookups.put(key, lookupResult);
-
+        lookupResult = ongoingLookups.get(key);
         try {
             Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
         } catch (IOException e) {
@@ -310,11 +307,11 @@ public class FingerTable {
      * @param targetNode node responsible for the key
      */
     void onLookupFinished(BigInteger key, NodeInfo targetNode) {
-        ongoingLookups.remove(key).complete(targetNode);
+        ongoingLookups.operationFinished(key, targetNode);
     }
 
     void onLookupFailed(BigInteger key) {
-        ongoingLookups.remove(key).completeExceptionally(new KeyNotFoundException());
+        ongoingLookups.operationFailed(key, new KeyNotFoundException());
     }
 
     boolean findSuccessors(NodeInfo bootstrapperNode) {

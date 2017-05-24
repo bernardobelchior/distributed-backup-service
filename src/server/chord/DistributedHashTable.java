@@ -13,7 +13,7 @@ import java.util.concurrent.TimeoutException;
 import static server.utils.Utils.between;
 
 public class DistributedHashTable {
-    private static final int OPERATION_TIMEOUT = 1; //In seconds
+    static final int OPERATION_TIMEOUT = 1; //In seconds
     public static final int MAXIMUM_HOPS = 8;
     private final Node node;
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();
@@ -87,7 +87,6 @@ public class DistributedHashTable {
         fileManager.delete(key);
 
         return true;
-
     }
 
     public String getState() {
@@ -116,7 +115,7 @@ public class DistributedHashTable {
         return predecessorKeys;
     }
 
-    void remappedKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
+    void storePredecessorKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
         localValues.putAll(keys);
     }
 

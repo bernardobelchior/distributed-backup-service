@@ -7,9 +7,9 @@ import java.math.BigInteger;
 
 public class GetResultOperation extends Operation {
     private final BigInteger key;
-    private final byte [] value;
+    private final byte[] value;
 
-    GetResultOperation(NodeInfo origin, BigInteger key, byte [] value) {
+    GetResultOperation(NodeInfo origin, BigInteger key, byte[] value) {
         super(origin);
         this.key = key;
         this.value = value;
@@ -17,6 +17,6 @@ public class GetResultOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.onGetFinished(key, value);
+        currentNode.ongoingGets.operationFinished(key, value);
     }
 }
