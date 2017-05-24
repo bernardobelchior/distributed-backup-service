@@ -19,7 +19,7 @@ public class SendKeysOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.receivedSuccessorKeys(keys);
+        currentNode.storeSuccessorKeys(keys);
 
         try {
             Mailman.sendOperation(origin, new SendKeysResultOperation(currentNode.getInfo()));

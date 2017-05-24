@@ -6,11 +6,11 @@ import server.communication.Operation;
 
 import java.math.BigInteger;
 
-public class RemoveResultOperation extends Operation {
+public class InsertResultOperation extends Operation {
     private final BigInteger key;
     private final boolean successful;
 
-    RemoveResultOperation(NodeInfo origin, BigInteger key, boolean successful) {
+    InsertResultOperation(NodeInfo origin, BigInteger key, boolean successful) {
         super(origin);
         this.key = key;
         this.successful = successful;
@@ -18,6 +18,6 @@ public class RemoveResultOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.ongoingDeletes.operationFinished(key, successful);
+        currentNode.ongoingPuts.operationFinished(key, successful);
     }
 }

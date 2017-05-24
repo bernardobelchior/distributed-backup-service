@@ -26,7 +26,7 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     public boolean backup(String pathName) throws IOException {
         byte[] file;
         try {
-            file = fileManager.loadFile(pathName);
+            file = fileManager.loadFileFromDisk(pathName);
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Could not encrypt file. Aborting backup...");
@@ -41,7 +41,7 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
 
-        boolean ret = dht.put(key, file);
+        boolean ret = dht.insert(key, file);
         System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
         return ret;
     }
@@ -74,7 +74,7 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     @Override
     public boolean delete(String hexKey) {
         BigInteger key = new BigInteger(DatatypeConverter.parseHexBinary(hexKey));
-        boolean ret = dht.remove(key);
+        boolean ret = dht.delete(key);
         System.out.println("File stored with key " + hexKey + " deleted successfully.");
         return ret;
     }

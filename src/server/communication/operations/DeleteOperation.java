@@ -8,19 +8,19 @@ import server.communication.Operation;
 import java.io.IOException;
 import java.math.BigInteger;
 
-public class PutOperation extends Operation {
+public class DeleteOperation extends Operation {
     private final BigInteger key;
-    private final byte[] value;
 
-    public PutOperation(NodeInfo origin, BigInteger key, byte[] value) {
+
+    public DeleteOperation(NodeInfo origin, BigInteger key) {
         super(origin);
         this.key = key;
-        this.value = value;
     }
 
     @Override
     public void run(Node currentNode) {
-        PutResultOperation result = new PutResultOperation(currentNode.getInfo(), key, currentNode.store(key, value));
+        currentNode.removeValue(key);
+        DeleteResultOperation result = new DeleteResultOperation(origin, key, currentNode.removeValue(key));
 
         try {
             Mailman.sendOperation(origin, result);

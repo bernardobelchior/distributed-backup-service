@@ -150,8 +150,8 @@ public class Node {
         stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
     }
 
-    public boolean store(BigInteger key, byte[] value) {
-        return dht.backup(key, value) && ensureReplication(key, value);
+    public boolean storeKey(BigInteger key, byte[] value) {
+        return dht.storeKey(key, value) && ensureReplication(key, value);
     }
 
     private boolean ensureReplication(BigInteger key, byte[] value) {
@@ -259,8 +259,8 @@ public class Node {
         return dht;
     }
 
-    CompletableFuture<Boolean> put(BigInteger key, byte[] value) {
-        return operation(ongoingPuts, new PutOperation(self, key, value), key);
+    CompletableFuture<Boolean> insert(BigInteger key, byte[] value) {
+        return operation(ongoingPuts, new InsertOperation(self, key, value), key);
     }
 
     private CompletableFuture<Boolean> sendKeysToNode(NodeInfo destination, ConcurrentHashMap<BigInteger, byte[]> keys) throws IOException {
@@ -327,8 +327,8 @@ public class Node {
         return sb.toString();
     }
 
-    public void receivedSuccessorKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
-        dht.storePredecessorKeys(keys);
+    public void storeSuccessorKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
+        dht.storeKeys(keys);
     }
 
     CompletableFuture<byte[]> get(BigInteger key) {
@@ -363,11 +363,11 @@ public class Node {
         return operationState;
     }
 
-    CompletableFuture<Boolean> remove(BigInteger key) {
-        return operation(ongoingDeletes, new RemoveOperation(self, key), key);
+    CompletableFuture<Boolean> delete(BigInteger key) {
+        return operation(ongoingDeletes, new DeleteOperation(self, key), key);
     }
 
     public boolean removeValue(BigInteger key) {
-        return dht.removeLocally(key);
+        return dht.deleteKey(key);
     }
 }
