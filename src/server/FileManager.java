@@ -1,6 +1,7 @@
 package server;
 
 import encryptUtils.KeyEncryption;
+import server.exceptions.DecryptionFailedException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -64,12 +65,10 @@ public class FileManager {
         return KeyEncryption.encrypt(content);
     }
 
-    public void saveRestoredFile(String path, byte[] content) throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ClassNotFoundException {
+    public void saveRestoredFile(String path, byte[] content) throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ClassNotFoundException, DecryptionFailedException {
+        byte[] decryptedContent = KeyEncryption.decrypt(content);
+
         FileOutputStream fileOutputStream = new FileOutputStream(path);
-
-        //byte[] decryptedContent = KeyEncryption.decrypt(content);
-        byte[] decryptedContent = content; //FIXME: Encryption not working.
-
         fileOutputStream.write(decryptedContent);
         fileOutputStream.flush();
         fileOutputStream.close();

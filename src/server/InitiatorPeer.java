@@ -2,8 +2,10 @@ package server;
 
 import common.IInitiatorPeer;
 import server.chord.DistributedHashTable;
+import server.exceptions.DecryptionFailedException;
 import server.utils.Utils;
 
+import javax.crypto.BadPaddingException;
 import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -53,14 +55,20 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         if (content != null) {
             try {
                 fileManager.saveRestoredFile(filename, content);
+            } catch (DecryptionFailedException | BadPaddingException e) {
+                System.err.println("Attempted decryption with wrong key. Restore failed...");
+                return false;
             } catch (Exception e) {
                 e.printStackTrace();
-                System.err.println("Could not decrypt file. Aborting restore...");
+                return false;
             }
+        } else {
+            System.err.println("File stored with key " + hexKey + " not found.");
+            return false;
         }
 
         System.out.println("File stored with key " + hexKey + " restored successfully.");
-        return content != null;
+        return true;
     }
 
     @Override

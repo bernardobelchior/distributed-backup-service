@@ -1,39 +1,31 @@
 package encryptUtils;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
+import server.exceptions.DecryptionFailedException;
+
+import javax.crypto.*;
 import java.io.*;
-import java.security.*;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
 
 public class KeyEncryption {
-    private static final String ALGORITHM = "RSA";
-    private static final int KEY_LENGTH = 2048;
+    private static final String ALGORITHM = "AES";
+    private static final int KEY_LENGTH = 128;
 
-    private static final String PUBLIC_KEY_FILENAME = "public.key";
-    private static final String PRIVATE_KEY_FILENAME = "private.key";
+    private static final String KEY_FILENAME = "secret.key";
 
-    private static PublicKey publicKey;
-    private static PrivateKey privateKey;
+    private static SecretKey secretKey;
 
     public static void initializeKeys(String keyDir) throws NoSuchAlgorithmException, IOException {
-        File pubKeyFile = new File(keyDir + PUBLIC_KEY_FILENAME);
-        File privKeyFile = new File(keyDir + PRIVATE_KEY_FILENAME);
+        File keyFile = new File(keyDir + KEY_FILENAME);
 
         try {
-            publicKey = (PublicKey) loadKey(pubKeyFile);
-            privateKey = (PrivateKey) loadKey(privKeyFile);
+            secretKey = (SecretKey) loadKey(keyFile);
         } catch (Exception e) {
-            final KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM);
-            keyGen.initialize(KEY_LENGTH);
-
-            final KeyPair kPair = keyGen.generateKeyPair();
-            publicKey = kPair.getPublic();
-            privateKey = kPair.getPrivate();
-
-            saveKey(publicKey, pubKeyFile);
-            saveKey(privateKey, privKeyFile);
+            final KeyGenerator keyGen = KeyGenerator.getInstance(ALGORITHM);
+            keyGen.init(KEY_LENGTH);
+            secretKey = keyGen.generateKey();
+            saveKey(secretKey, keyFile);
         }
     }
 
@@ -47,15 +39,19 @@ public class KeyEncryption {
 
     public static byte[] encrypt(byte[] content) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, IllegalBlockSizeException {
         final Cipher cipher = Cipher.getInstance(ALGORITHM);
-        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
         return cipher.doFinal(content);
     }
 
-    public static byte[] decrypt(byte[] content) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+    public static byte[] decrypt(byte[] content) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, DecryptionFailedException {
         final Cipher cipher = Cipher.getInstance(ALGORITHM);
-        System.out.println("Decrypting content with length :" + content.length);
-        cipher.init(Cipher.DECRYPT_MODE, privateKey);
-        return cipher.doFinal(content);
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+        byte[] decryptedContent = cipher.doFinal(content);
+
+        if (decryptedContent == null)
+            throw new DecryptionFailedException();
+
+        return decryptedContent;
     }
 
     private static Key loadKey(File path) throws IOException, ClassNotFoundException {
