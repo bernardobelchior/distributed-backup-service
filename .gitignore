@@ -6,4 +6,5 @@
 out/*
 *.class
 
-Keys/
+**/Keys/
+**/StoredFiles/
