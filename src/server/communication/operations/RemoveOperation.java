@@ -18,13 +18,12 @@ public class RemoveOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
+        currentNode.removeValue(key);
         RemoveResultOperation result = new RemoveResultOperation(origin, key, currentNode.removeValue(key));
 
         try {
             Mailman.sendOperation(origin, result);
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
     }

@@ -5,34 +5,31 @@ import server.chord.DistributedHashTable;
 import server.utils.Utils;
 
 import javax.xml.bind.DatatypeConverter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.NoSuchAlgorithmException;
 
-import encryptUtils.KeyEncryption;
-
-import java.security.PrivateKey;
-import java.security.PublicKey;
-
 public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer {
     private final DistributedHashTable dht;
-	
-
+    private final FileManager fileManager;
 
     InitiatorPeer(DistributedHashTable dht) throws IOException, NoSuchAlgorithmException {
         super();
         this.dht = dht;
-
+        fileManager = dht.getFileManager();
     }
 
     @Override
     public boolean backup(String pathName) throws IOException {
-        byte[] file = FileManager.loadFile(pathName);
+        byte[] file;
+        try {
+            file = fileManager.loadFile(pathName);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Could not encrypt file. Aborting backup...");
+            return false;
+        }
 
         BigInteger key;
         try {
@@ -45,9 +42,7 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         boolean ret = dht.put(key, file);
         System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
         return ret;
-        }
-
-
+    }
 
 
     @Override
@@ -55,8 +50,14 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         BigInteger key = new BigInteger(DatatypeConverter.parseHexBinary(hexKey));
         byte[] content = dht.get(key);
 
-        if (content != null)
-            FileManager.saveFile(filename, content);
+        if (content != null) {
+            try {
+                fileManager.saveRestoredFile(filename, content);
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.err.println("Could not decrypt file. Aborting restore...");
+            }
+        }
 
         System.out.println("File stored with key " + hexKey + " restored successfully.");
         return content != null;

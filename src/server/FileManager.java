@@ -1,109 +1,76 @@
 package server;
 
+import encryptUtils.KeyEncryption;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.xml.bind.DatatypeConverter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
-
-import encryptUtils.KeyEncryption;
-
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 
 
 public class FileManager {
-    private final static String STORED_FILES_DIR = "StoredFiles/";
-	//Não sei se é assim - Retirar se necessário
-	private final static String PUBLIC_KEYS_PATH = "Keys/public.key";
-	private final static String PRIVATE_KEYS_PATH = "Keys/private.key";
-    private static final String RESTORED_FILES_DIR = "RestoredFiles/";
     private final String BASE_DIR;
 
+    private final static String STORED_FILES_DIR = "StoredFiles/";
+    private final static String KEYS_DIR = "Keys/";
+
     public FileManager(int nodeId) throws IOException, NoSuchAlgorithmException {
-        BASE_DIR = String.valueOf(nodeId);
-        KeyEncryption.genkeys(PUBLIC_KEYS_PATH,PRIVATE_KEYS_PATH);
-        
+        BASE_DIR = String.valueOf(nodeId) + "/";
+        createDirectories();
+        KeyEncryption.initializeKeys(getKeysDir());
     }
 
     private void createDirectories() {
         File parentDir = new File(BASE_DIR);
         parentDir.mkdir();
 
-        File storedFiles = new File(getStoredFilesDir());
-        storedFiles.mkdir();
+        File storedFilesDir = new File(getStoredFilesDir());
+        storedFilesDir.mkdir();
+
+        File keysDir = new File(getKeysDir());
+        keysDir.mkdir();
     }
 
     private String getStoredFilesDir() {
-        return BASE_DIR + "/" + STORED_FILES_DIR;
+        return BASE_DIR + STORED_FILES_DIR;
     }
 
-
-
-		
-		
-		
-    private String getRestoredFilesDir() {
-        return BASE_DIR + "/" + RESTORED_FILES_DIR;
+    private String getKeysDir() {
+        return BASE_DIR + KEYS_DIR;
     }
 
-    public void saveFile(BigInteger key, byte[] content) throws IOException {
+    public void storeFile(BigInteger key, byte[] content) throws IOException {
         createDirectories();
+
         File file = new File(getStoredFilesDir() + DatatypeConverter.printHexBinary(key.toByteArray()));
         FileOutputStream fileOutputStream = new FileOutputStream(file);
-
-        File privateKeyFile = new File(PRIVATE_KEYS_PATH);
-        PrivateKey privKey = null;
-        try {
-            privKey = KeyEncryption.obtainPrivateKey(privateKeyFile);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        byte[] finalContent = null;
-        finalContent = KeyEncryption.decrypt(content, privKey);
-
-        fileOutputStream.write(finalContent);
+        fileOutputStream.write(content);
         fileOutputStream.flush();
         fileOutputStream.close();
-    
-
     }
 
-    public static byte[] loadFile(String pathName) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(pathName);
+    public byte[] loadFile(String path) throws IOException, NoSuchAlgorithmException, BadPaddingException, NoSuchPaddingException, IllegalBlockSizeException, InvalidKeyException, ClassNotFoundException {
+        FileInputStream fileInputStream = new FileInputStream(path);
 
-        byte[] file = new byte[fileInputStream.available()];
-        fileInputStream.read(file);
-
-        File publicKeyFile = new File(PUBLIC_KEYS_PATH);
-        PublicKey pubKey = null;
-        try {
-            pubKey = KeyEncryption.obtainPublicKey(publicKeyFile);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        byte[] finalFile = null;
-        finalFile = KeyEncryption.encrypt(file, pubKey);
-
-        return finalFile;
+        byte[] content = new byte[fileInputStream.available()];
+        fileInputStream.read(content);
+        return KeyEncryption.encrypt(content);
     }
 
-    public static void saveFile(String pathName, byte[] content) throws IOException {
-        FileOutputStream fileOutputStream = new FileOutputStream(pathName);
+    public void saveRestoredFile(String path, byte[] content) throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ClassNotFoundException {
+        FileOutputStream fileOutputStream = new FileOutputStream(path);
 
-        File privateKeyFile = new File(PRIVATE_KEYS_PATH);
-        PrivateKey privKey = null;
-        try {
-            privKey = KeyEncryption.obtainPrivateKey(privateKeyFile);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        byte[] finalContent = null;
-        finalContent = KeyEncryption.decrypt(content, privKey);
+        //byte[] decryptedContent = KeyEncryption.decrypt(content);
+        byte[] decryptedContent = content; //FIXME: Encryption not working.
 
-        fileOutputStream.write(finalContent);
+        fileOutputStream.write(decryptedContent);
         fileOutputStream.flush();
         fileOutputStream.close();
     }

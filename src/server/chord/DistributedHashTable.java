@@ -14,18 +14,18 @@ import java.util.concurrent.TimeoutException;
 import static server.utils.Utils.between;
 
 public class DistributedHashTable {
-    private static final int OPERATION_TIMEOUT = 1; //In seconds
+    static final int OPERATION_TIMEOUT = 1; //In seconds
     public static final int MAXIMUM_HOPS = 8;
     private final Node node;
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();
     private final FileManager fileManager;
 
     public DistributedHashTable(Node node) throws IOException, NoSuchAlgorithmException {
-   
+
         this.node = node;
         this.fileManager = new FileManager(node.getInfo().getId());
     }
-    
+
     public boolean put(BigInteger key, byte[] value) {
         CompletableFuture<Boolean> put = node.put(key, value);
 
@@ -75,7 +75,7 @@ public class DistributedHashTable {
         localValues.put(key, value);
 
         try {
-            fileManager.saveFile(key, value);
+            fileManager.storeFile(key, value);
         } catch (IOException e) {
             e.printStackTrace();
             return false;
@@ -89,7 +89,6 @@ public class DistributedHashTable {
         fileManager.delete(key);
 
         return true;
-
     }
 
     public String getState() {
@@ -118,7 +117,11 @@ public class DistributedHashTable {
         return predecessorKeys;
     }
 
-    void remappedKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
+    public FileManager getFileManager() {
+        return fileManager;
+    }
+
+    void storePredecessorKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
         localValues.putAll(keys);
     }
 

@@ -52,9 +52,7 @@ public class Connection {
             this.nodeInfo = operation.getOrigin();
             Mailman.addOpenConnection(this);
             operation.run(currentNode);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (ClassNotFoundException | IOException e) {
             e.printStackTrace();
         }
     }

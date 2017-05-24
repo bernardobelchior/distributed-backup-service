@@ -10,31 +10,36 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
+import static server.chord.DistributedHashTable.OPERATION_TIMEOUT;
 import static server.chord.FingerTable.LOOKUP_TIMEOUT;
 import static server.utils.Utils.addToNodeId;
 
 public class Node {
     public static final int MAX_NODES = 128;
-    public static final int REPLICATION_DEGREE = 2;
+    private static final int REPLICATION_DEGREE = 2;
 
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
     private final DistributedHashTable dht;
     private CompletableFuture<NodeInfo> ongoingPredecessorLookup;
-    private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingInsertions = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<BigInteger, CompletableFuture<Boolean>> ongoingDeletes = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<BigInteger, CompletableFuture<byte[]>> ongoingGetOperations = new ConcurrentHashMap<>();
+
+    public final OperationManager<Integer, Boolean> ongoingKeySendings = new OperationManager<>();
+
+    public final OperationManager<BigInteger, Boolean> ongoingDeletes = new OperationManager<>();
+    public final OperationManager<BigInteger, Boolean> ongoingPuts = new OperationManager<>();
+    public final OperationManager<BigInteger, byte[]> ongoingGets = new OperationManager<>();
 
     private final ConcurrentHashMap<Integer, ConcurrentHashMap<BigInteger, byte[]>> replicatedValues = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
 
     /**
-     * @param port Port to start the service in
+     * @param address Address of this server
+     * @param port    Port to start the service in
      */
-    public Node(int port) throws IOException, NoSuchAlgorithmException {
-        self = new NodeInfo(InetAddress.getLocalHost(), port);
+    public Node(InetAddress address, int port) throws IOException, NoSuchAlgorithmException {
+        self = new NodeInfo(address, port);
         fingerTable = new FingerTable(self);
         ongoingPredecessorLookup = null;
         dht = new DistributedHashTable(this);
@@ -143,12 +148,8 @@ public class Node {
         stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
     }
 
-   
-    public boolean store(BigInteger key, byte[] value)  throws ClassNotFoundException{
-        if (!dht.backup(key, value))
-         return false;
-         
-        return ensureReplication(key, value);
+    public boolean store(BigInteger key, byte[] value) {
+        return dht.backup(key, value) && ensureReplication(key, value);
     }
 
     private boolean ensureReplication(BigInteger key, byte[] value) {
@@ -157,9 +158,10 @@ public class Node {
             try {
                 node = fingerTable.getNthSuccessor(i);
             } catch (IndexOutOfBoundsException e) {
-                System.err.println("Replication of file with key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " failed." +
+                System.err.println("Replication of file with key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " failed.\n" +
                         "Current replication degree is " + i + ".");
-                return false;
+                //FIXME: Try again later.
+                return true;
             }
 
             try {
@@ -167,10 +169,7 @@ public class Node {
             } catch (IOException e) {
                 informAboutFailure(node);
                 i--;
-            } catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+            }
         }
 
         return true;
@@ -220,8 +219,6 @@ public class Node {
             Mailman.sendOperation(successor, notification);
         } catch (IOException e) {
             System.err.println("Unable to notify successor");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
         }
     }
 
@@ -238,7 +235,9 @@ public class Node {
         try {
             predecessorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            e.printStackTrace();
             System.err.println("Predecessor not responding, deleting reference");
+            Mailman.state();
             fingerTable.onLookupFailed(keyEquivalent);
             fingerTable.setPredecessor(null);
         }
@@ -259,44 +258,32 @@ public class Node {
     }
 
     CompletableFuture<Boolean> put(BigInteger key, byte[] value) {
-        CompletableFuture<Boolean> put = new CompletableFuture<>();
-
-        if (ongoingInsertions.putIfAbsent(key, put) != null) {
-            put.completeExceptionally(new Exception("Put operation with same key as " + DatatypeConverter.printHexBinary(key.toByteArray()) + " already ongoing."));
-            return put;
-        }
-
-        NodeInfo destination;
-        try {
-            destination = fingerTable.lookup(key).get();
-        } catch (InterruptedException | ExecutionException e) {
-            fingerTable.onLookupFailed(key);
-            System.err.println("Put operation failed. Please try again...");
-            e.printStackTrace();
-            put.completeExceptionally(e);
-            return put;
-        }
-
-        try {
-            Mailman.sendOperation(destination, new PutOperation(self, key, value));
-        } catch (IOException e) {
-            e.printStackTrace();
-            put.completeExceptionally(e);
-        } catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-        return put;
+        return operation(ongoingPuts, new PutOperation(self, key, value), key);
     }
 
-    public void onPutFinished(BigInteger key, boolean successful) {
-        ongoingInsertions.remove(key).complete(successful);
+    private CompletableFuture<Boolean> sendKeysToNode(NodeInfo destination, ConcurrentHashMap<BigInteger, byte[]> keys) throws IOException {
+        int destinationId = destination.getId();
+        CompletableFuture<Boolean> sending = ongoingKeySendings.putIfAbsent(destinationId);
+
+        if (sending != null)
+            return sending;
+
+        Mailman.sendOperation(destination, new SendKeysOperation(self, keys));
+
+        return ongoingKeySendings.get(destinationId);
     }
 
     public boolean updatePredecessor(NodeInfo newPredecessor) {
         if (fingerTable.updatePredecessor(newPredecessor)) {
-            dht.getNewPredecessorKeys(newPredecessor);
+
+            try {
+                sendKeysToNode(newPredecessor,
+                        dht.getNewPredecessorKeys(newPredecessor)).get(OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
+            } catch (IOException | InterruptedException | ExecutionException | TimeoutException e) {
+                informAboutFailure(newPredecessor);
+                return false;
+            }
+
             return true;
         } else {
             return false;
@@ -304,6 +291,7 @@ public class Node {
     }
 
     public void informAboutExistence(NodeInfo node) {
+        fingerTable.updatePredecessor(node);
         fingerTable.updateSuccessors(node);
         fingerTable.updateFingerTable(node);
     }
@@ -313,10 +301,6 @@ public class Node {
         fingerTable.informSuccessorsOfFailure(node);
         fingerTable.informFingersOfFailure(node);
         fingerTable.informPredecessorOfFailure(node);
-    }
-
-    public boolean hasSuccessors() {
-        return fingerTable.hasSuccessors();
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
@@ -341,81 +325,44 @@ public class Node {
         return sb.toString();
     }
 
-    public void remappedKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
-        dht.remappedKeys(keys);
+    public void receivedSuccessorKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
+        dht.storePredecessorKeys(keys);
     }
 
-    public CompletableFuture<byte[]> get(BigInteger key) {
-        CompletableFuture<byte[]> get = new CompletableFuture<>();
+    CompletableFuture<byte[]> get(BigInteger key) {
+        return operation(ongoingGets, new GetOperation(self, key), key);
+    }
 
-        if (ongoingGetOperations.putIfAbsent(key, get) != null) {
-            get.completeExceptionally(new Exception("Get operation already ongoing."));
-            return get;
-        }
+    private <R> CompletableFuture<R> operation(OperationManager<BigInteger, R> operationManager, Operation
+            operation, BigInteger key) {
+        CompletableFuture<R> operationState = operationManager.putIfAbsent(key);
+
+        if (operationState != null)
+            return operationState;
+
+        operationState = operationManager.get(key);
 
         NodeInfo destination;
         try {
             destination = fingerTable.lookup(key).get();
         } catch (InterruptedException | ExecutionException e) {
             fingerTable.onLookupFailed(key);
-            System.err.println("Get operation failed. Please try again...");
-            e.printStackTrace();
-            get.completeExceptionally(e);
-            return get;
+            operationState.completeExceptionally(e);
+            return operationState;
         }
 
         try {
-            Mailman.sendOperation(destination, new GetOperation(self, key));
+            Mailman.sendOperation(destination, operation);
         } catch (IOException e) {
-            e.printStackTrace();
-            get.completeExceptionally(e);
-            return get;
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            operationState.completeExceptionally(e);
+            return operationState;
         }
 
-        return get;
+        return operationState;
     }
 
-    public void onGetFinished(BigInteger key, byte[] value) {
-        ongoingGetOperations.remove(key).complete(value);
-    }
-
-    public CompletableFuture<Boolean> remove(BigInteger key) {
-        CompletableFuture<Boolean> remove = new CompletableFuture<>();
-
-        if (ongoingDeletes.putIfAbsent(key, remove) != null) {
-            remove.completeExceptionally(new Exception("Get operation already ongoing."));
-            return remove;
-        }
-
-        NodeInfo destination;
-        try {
-            destination = fingerTable.lookup(key).get();
-        } catch (InterruptedException | ExecutionException e) {
-            fingerTable.onLookupFailed(key);
-            System.err.println("Remove operation failed. Please try again...");
-            e.printStackTrace();
-            remove.completeExceptionally(e);
-            return remove;
-        }
-
-        try {
-            Mailman.sendOperation(destination, new RemoveOperation(self, key));
-        } catch (IOException e) {
-            e.printStackTrace();
-            remove.completeExceptionally(e);
-            return remove;
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        return remove;
-    }
-
-
-    public void onRemoveFinished(BigInteger key, boolean successful) {
-        ongoingDeletes.remove(key).complete(successful);
+    CompletableFuture<Boolean> remove(BigInteger key) {
+        return operation(ongoingDeletes, new RemoveOperation(self, key), key);
     }
 
     public boolean removeValue(BigInteger key) {

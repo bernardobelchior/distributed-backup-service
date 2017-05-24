@@ -16,13 +16,14 @@ import static server.utils.Utils.between;
 public class FingerTable {
     public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
     public static final int NUM_SUCCESSORS = 5;
-    static final int LOOKUP_TIMEOUT = 400; // In milliseconds
+    static final int LOOKUP_TIMEOUT = 2000; // In milliseconds
+
+    private final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
 
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
     private final SynchronizedFixedLinkedList<NodeInfo> successors;
     private final NodeInfo self;
-    private final ConcurrentHashMap<BigInteger, CompletableFuture<NodeInfo>> ongoingLookups = new ConcurrentHashMap<>();
     private final ExecutorService lookupThreadPool = Executors.newFixedThreadPool(10);
 
     public FingerTable(NodeInfo self) {
@@ -32,20 +33,8 @@ public class FingerTable {
         successors = new SynchronizedFixedLinkedList<>(NUM_SUCCESSORS);
 
         for (int i = 0; i < fingers.length; i++)
-            fingers[i] = self;
+            setFinger(i, self);
     }
-
-    /**
-     * Check if a given key belongs to this node's successor, that is,
-     * if the key is between this node and the successor
-     *
-     * @param key key being checked
-     * @return true if the key belongs to the node's successor
-     */
-    public boolean keyBelongsToSuccessor(BigInteger key) {
-        return fingers[0] != null && between(self, fingers[0], key);
-    }
-
 
     /**
      * @param index
@@ -65,11 +54,11 @@ public class FingerTable {
 
         int keyOwner = Integer.remainderUnsigned(key.intValue(), MAX_NODES);
         for (int i = fingers.length - 1; i >= 0; i--) {
-            if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) && !fingers[i].equals(self))
+            if (fingers[i].getId() != keyOwner && between(self.getId(), keyOwner, fingers[i].getId()) /*&& !fingers[i].equals(self)*/)
                 return fingers[i];
         }
 
-        return successors.get(0);
+        return getSuccessor();
     }
 
     @Override
@@ -82,18 +71,20 @@ public class FingerTable {
                 : predecessor.getId());
         sb.append("\n\n");
         sb.append("Finger Table:\n");
-        sb.append("Index\t\t\tID\n");
+        sb.append("Index\tKey\t\tID\n");
 
         for (int i = 0; i < fingers.length; i++) {
             sb.append(i);
-            sb.append("\t\t\t");
+            sb.append("\t\t");
+            sb.append(Integer.remainderUnsigned((int) (self.getId() + Math.pow(2, i)), MAX_NODES));
+            sb.append("\t\t");
             sb.append(fingers[i] == null
                     ? "null"
                     : fingers[i].getId());
             sb.append("\n");
         }
 
-        sb.append("Successors:\n");
+        sb.append("\nSuccessors:\n");
         sb.append("Index\t\t\tID\n");
 
         for (int i = 0; i < successors.size(); i++) {
@@ -111,7 +102,7 @@ public class FingerTable {
     /**
      * Fills the node's finger table
      */
-    public void fill() {
+    void fill() {
         if (!hasSuccessors())
             return;
 
@@ -127,29 +118,20 @@ public class FingerTable {
         /* Check if the finger belongs to the successors. If it does, then we don't need to look it up. */
         for (int i = 0; i < successors.size(); i++) {
             if (between(self, successors.get(i), keyToLookup)) {
-                fingers[index] = successors.get(i);
+                setFinger(index, successors.get(i));
                 return true;
             }
         }
 
         try {
-                /*
-                 * If the key corresponding to the ith row of the finger table stands between me and my successor,
-                 * it means that fingers[i] is still my successor. If it is not, look for the corresponding node.
-                 */
-            if (fingers[index] != null && between(self, fingers[0], keyToLookup))
-                fingers[index] = fingers[0];
-            else {
-                CompletableFuture<Void> fingerLookup = lookup(keyToLookup).thenAcceptAsync(
-                        finger -> setFinger(index, finger),
-                        lookupThreadPool);
+            CompletableFuture<Void> fingerLookup = lookup(keyToLookup).thenAcceptAsync(
+                    finger -> setFinger(index, finger),
+                    lookupThreadPool);
 
-                fingerLookup.get(400, TimeUnit.MILLISECONDS);
-            }
+            fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | InterruptedException | ExecutionException e) {
             onLookupFailed(keyToLookup);
-            fingers[index] = self;
-            System.err.println("Could not find finger " + index + ".");
+            setFinger(index, self);
             return false;
         }
 
@@ -166,7 +148,7 @@ public class FingerTable {
 
         for (int i = 0; i < fingers.length; i++)
             if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent))
-                fingers[i] = node;
+                setFinger(i, node);
     }
 
     /**
@@ -175,7 +157,7 @@ public class FingerTable {
      * @return NodeInfo for the successor
      */
     public NodeInfo getSuccessor() {
-        return (!successors.isEmpty() ? successors.get(0) : fingers[0]);
+        return (!successors.isEmpty() ? successors.get(0) : self);
     }
 
     public NodeInfo getNthSuccessor(int index) throws IndexOutOfBoundsException {
@@ -199,6 +181,7 @@ public class FingerTable {
      * @param predecessor new predecessor
      */
     public void setPredecessor(NodeInfo predecessor) {
+        System.err.println("Predecessor set to " + (predecessor == null ? "null" : predecessor.getId()));
         this.predecessor = predecessor;
     }
 
@@ -289,22 +272,18 @@ public class FingerTable {
      * @return
      * @throws IOException
      */
-    CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
+    private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
         /* Check if requested lookup is already being done */
-        CompletableFuture<NodeInfo> lookupResult = ongoingLookups.get(key);
+        CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
 
         if (lookupResult != null)
             return lookupResult;
 
-        lookupResult = new CompletableFuture<>();
-        ongoingLookups.put(key, lookupResult);
-
+        lookupResult = ongoingLookups.get(key);
         try {
-            Mailman.sendOperation(nodeToLookup, new LookupOperation(self, key));
+            Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
         } catch (IOException e) {
             lookupResult.completeExceptionally(e);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
         }
 
         return lookupResult;
@@ -317,6 +296,10 @@ public class FingerTable {
             return lookupFrom(key, getNextBestNode(key));
     }
 
+    public boolean keyBelongsToSuccessor(BigInteger key) {
+        return between(self, getSuccessor(), key);
+    }
+
     /**
      * Called by a LookupResultOperation, signals the lookup for the key is finished
      *
@@ -324,11 +307,11 @@ public class FingerTable {
      * @param targetNode node responsible for the key
      */
     void onLookupFinished(BigInteger key, NodeInfo targetNode) {
-        ongoingLookups.remove(key).complete(targetNode);
+        ongoingLookups.operationFinished(key, targetNode);
     }
 
     void onLookupFailed(BigInteger key) {
-        ongoingLookups.remove(key).completeExceptionally(new KeyNotFoundException());
+        ongoingLookups.operationFailed(key, new KeyNotFoundException());
     }
 
     boolean findSuccessors(NodeInfo bootstrapperNode) {

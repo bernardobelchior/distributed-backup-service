@@ -24,8 +24,6 @@ public class GetOperation extends Operation {
             Mailman.sendOperation(origin, result);
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
         }
     }
 }
