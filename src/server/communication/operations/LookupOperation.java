@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 import static server.chord.DistributedHashTable.MAXIMUM_HOPS;
+import static server.chord.Node.MAX_NODES;
 
 public class LookupOperation extends Operation {
     private BigInteger key;
@@ -37,6 +38,8 @@ public class LookupOperation extends Operation {
 
         if (reachedDestination) {
             try {
+                if (origin.getId() == 106)
+                    System.out.println("Key " + Integer.remainderUnsigned(key.intValue(), MAX_NODES) + " belongs to me!");
                 Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
                 currentNode.informAboutExistence(origin);
             } catch (IOException e) {

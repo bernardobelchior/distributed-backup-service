@@ -2,6 +2,9 @@
 .idea/*
 *.iml
 
+## Eclipse Config
+.project
+
 ## Output
 out/*
 *.class

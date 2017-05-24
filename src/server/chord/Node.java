@@ -15,8 +15,6 @@ import java.util.Map;
 import java.util.concurrent.*;
 
 import static server.chord.DistributedHashTable.OPERATION_TIMEOUT;
-import static server.chord.FingerTable.LOOKUP_TIMEOUT;
-import static server.utils.Utils.addToNodeId;
 
 public class Node {
     public static final int MAX_NODES = 128;
@@ -90,15 +88,12 @@ public class Node {
         NodeInfo successor = fingerTable.getSuccessor();
 
         /* Get the successor's predecessor, which will be the new node's predecessor */
-
-        CompletableFuture<Void> getPredecessor = null;
+        CompletableFuture<Void> getPredecessor;
         try {
             getPredecessor = requestSuccessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
             return false;
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
         }
 
         try {
@@ -148,7 +143,7 @@ public class Node {
     }
 
     public void initializeStabilization() {
-        stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
+        stabilizationExecutor.scheduleWithFixedDelay(fingerTable::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
     }
 
     public boolean storeKey(BigInteger key, byte[] value) {
@@ -176,74 +171,6 @@ public class Node {
         }
 
         return true;
-    }
-
-    public void stabilizationProtocol() {
-        if (!fingerTable.hasSuccessors())
-            return;
-
-        stabilizeSuccessor();
-        stabilizePredecessor();
-        fingerTable.fill();
-    }
-
-    /**
-     * Get the node's successor's predecessor, check if it is not the current node
-     * and notify the successor of this node's existence
-     */
-    private void stabilizeSuccessor() {
-        pingSuccessor();
-        notifySuccessor(getSuccessor());
-    }
-
-    private boolean pingSuccessor() {
-        BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
-
-        CompletableFuture<NodeInfo> findSuccessor = fingerTable.lookup(successorKey);
-
-        try {
-            findSuccessor.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | ExecutionException e) {
-            fingerTable.ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
-            return false;
-        } catch (InterruptedException | CancellationException e) {
-            fingerTable.ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
-            e.printStackTrace();
-            return false;
-        }
-
-        return true;
-    }
-
-    private void notifySuccessor(NodeInfo successor) {
-        NotifyOperation notification = new NotifyOperation(self);
-
-        try {
-            Mailman.sendOperation(successor, notification);
-        } catch (IOException e) {
-            System.err.println("Unable to notify successor");
-        }
-    }
-
-    private void stabilizePredecessor() {
-        NodeInfo predecessor = getPredecessor();
-        if (self.equals(predecessor) || predecessor == null)
-            return;
-
-        BigInteger keyEquivalent = BigInteger.valueOf(predecessor.getId());
-
-        CompletableFuture<Void> predecessorLookup = fingerTable.lookup(keyEquivalent).thenAcceptAsync(
-                fingerTable::updatePredecessor,
-                threadPool);
-        try {
-            predecessorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            e.printStackTrace();
-            System.err.println("Predecessor not responding, deleting reference");
-            Mailman.state();
-            fingerTable.ongoingLookups.operationFailed(keyEquivalent, new KeyNotFoundException());
-            fingerTable.setPredecessor(null);
-        }
     }
 
     public void storeReplica(NodeInfo node, BigInteger key, byte[] value) {
