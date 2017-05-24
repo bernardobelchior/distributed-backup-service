@@ -108,10 +108,10 @@ public class DistributedHashTable {
         return sb.toString();
     }
 
-    ConcurrentHashMap<BigInteger, byte[]> getNewPredecessorKeys(NodeInfo newPredecessor) {
+    ConcurrentHashMap<BigInteger, byte[]> getKeysBelongingTo(NodeInfo node) {
         ConcurrentHashMap<BigInteger, byte[]> predecessorKeys = new ConcurrentHashMap<>();
         localValues.forEach((key, value) -> {
-            if (!between(newPredecessor, node.getInfo(), key))
+            if (!between(node, this.node.getInfo(), key))
                 predecessorKeys.put(key, value);
         });
 

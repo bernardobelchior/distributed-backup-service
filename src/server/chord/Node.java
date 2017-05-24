@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
+import java.util.Map;
 import java.util.concurrent.*;
 
 import static server.chord.DistributedHashTable.OPERATION_TIMEOUT;
@@ -280,7 +281,7 @@ public class Node {
 
             try {
                 sendKeysToNode(newPredecessor,
-                        dht.getNewPredecessorKeys(newPredecessor)).get(OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
+                        dht.getKeysBelongingTo(newPredecessor)).get(OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
             } catch (IOException | InterruptedException | ExecutionException | TimeoutException e) {
                 informAboutFailure(newPredecessor);
                 return false;
@@ -300,9 +301,30 @@ public class Node {
 
     public void informAboutFailure(NodeInfo node) {
         System.err.println("Node with ID " + node.getId() + " has failed.");
+        if (fingerTable.getPredecessor().equals(node)) {
+            ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.remove(node.getId());
+            dht.storeKeys(replicas);
+            System.err.println("Node " + node.getId() + " failed. Replicating keys to " + fingerTable.getNthSuccessor(REPLICATION_DEGREE - 2).getId());
+            replicateTo(replicas, fingerTable.getNthSuccessor(REPLICATION_DEGREE - 2));
+        }
+
         fingerTable.informSuccessorsOfFailure(node);
         fingerTable.informFingersOfFailure(node);
         fingerTable.informPredecessorOfFailure(node);
+    }
+
+    private boolean replicateTo(ConcurrentHashMap<BigInteger, byte[]> replicas, NodeInfo node) {
+        for (Map.Entry<BigInteger, byte[]> entry : replicas.entrySet()) {
+            try {
+                Mailman.sendOperation(node, new ReplicationOperation(self, entry.getKey(), entry.getValue()));
+            } catch (IOException e) {
+                informAboutFailure(node);
+                return false;
+            }
+        }
+
+
+        return true;
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
