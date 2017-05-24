@@ -1,7 +1,7 @@
 package server;
 
-import encryptUtils.KeyEncryption;
 import server.exceptions.DecryptionFailedException;
+import server.utils.Encryption;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -25,7 +25,7 @@ public class FileManager {
     public FileManager(int nodeId) throws IOException, NoSuchAlgorithmException {
         BASE_DIR = String.valueOf(nodeId) + "/";
         createDirectories();
-        KeyEncryption.initializeKeys(getKeysDir());
+        Encryption.initializeKeys(getKeysDir());
     }
 
     private void createDirectories() {
@@ -62,11 +62,11 @@ public class FileManager {
 
         byte[] content = new byte[fileInputStream.available()];
         fileInputStream.read(content);
-        return KeyEncryption.encrypt(content);
+        return Encryption.encrypt(content);
     }
 
     public void saveRestoredFile(String path, byte[] content) throws IOException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, ClassNotFoundException, DecryptionFailedException {
-        byte[] decryptedContent = KeyEncryption.decrypt(content);
+        byte[] decryptedContent = Encryption.decrypt(content);
 
         FileOutputStream fileOutputStream = new FileOutputStream(path);
         fileOutputStream.write(decryptedContent);

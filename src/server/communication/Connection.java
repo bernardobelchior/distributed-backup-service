@@ -3,7 +3,6 @@ package server.communication;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
-import server.communication.operations.Operation;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;

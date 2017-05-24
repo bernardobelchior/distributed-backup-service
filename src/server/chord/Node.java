@@ -1,7 +1,10 @@
 package server.chord;
 
 import server.communication.Mailman;
+import server.communication.Operation;
+import server.communication.OperationManager;
 import server.communication.operations.*;
+import server.exceptions.KeyNotFoundException;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
@@ -17,7 +20,6 @@ import static server.utils.Utils.addToNodeId;
 public class Node {
     public static final int MAX_NODES = 128;
     private static final int REPLICATION_DEGREE = 2;
-
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
@@ -201,10 +203,10 @@ public class Node {
         try {
             findSuccessor.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | ExecutionException e) {
-            fingerTable.onLookupFailed(successorKey);
+            fingerTable.ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
             return false;
         } catch (InterruptedException | CancellationException e) {
-            fingerTable.onLookupFailed(successorKey);
+            fingerTable.ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
             e.printStackTrace();
             return false;
         }
@@ -238,7 +240,7 @@ public class Node {
             e.printStackTrace();
             System.err.println("Predecessor not responding, deleting reference");
             Mailman.state();
-            fingerTable.onLookupFailed(keyEquivalent);
+            fingerTable.ongoingLookups.operationFailed(keyEquivalent, new KeyNotFoundException());
             fingerTable.setPredecessor(null);
         }
     }
@@ -304,7 +306,7 @@ public class Node {
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
-        fingerTable.onLookupFinished(key, targetNode);
+        fingerTable.ongoingLookups.operationFinished(key, targetNode);
         informAboutExistence(targetNode);
     }
 
@@ -346,7 +348,7 @@ public class Node {
         try {
             destination = fingerTable.lookup(key).get();
         } catch (InterruptedException | ExecutionException e) {
-            fingerTable.onLookupFailed(key);
+            fingerTable.ongoingLookups.operationFailed(key, new KeyNotFoundException());
             operationState.completeExceptionally(e);
             return operationState;
         }

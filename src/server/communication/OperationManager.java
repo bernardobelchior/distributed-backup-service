@@ -1,4 +1,4 @@
-package server.chord;
+package server.communication;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -6,11 +6,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OperationManager<T, U> {
     private final ConcurrentHashMap<T, CompletableFuture<U>> ongoingOperation = new ConcurrentHashMap<>();
 
-    CompletableFuture<U> get(T key) {
+    public CompletableFuture<U> get(T key) {
         return ongoingOperation.get(key);
     }
 
-    CompletableFuture<U> putIfAbsent(T key) {
+    public CompletableFuture<U> putIfAbsent(T key) {
         return ongoingOperation.putIfAbsent(key, new CompletableFuture<>());
     }
 

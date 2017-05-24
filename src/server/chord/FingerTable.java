@@ -1,6 +1,7 @@
 package server.chord;
 
 import server.communication.Mailman;
+import server.communication.OperationManager;
 import server.communication.operations.LookupOperation;
 import server.exceptions.KeyNotFoundException;
 import server.utils.SynchronizedFixedLinkedList;
@@ -18,7 +19,7 @@ public class FingerTable {
     public static final int NUM_SUCCESSORS = 5;
     static final int LOOKUP_TIMEOUT = 2000; // In milliseconds
 
-    private final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
+    public final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
 
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
@@ -28,7 +29,7 @@ public class FingerTable {
 
     public FingerTable(NodeInfo self) {
         this.self = self;
-        predecessor = self;
+        setPredecessor(self);
         fingers = new NodeInfo[FINGER_TABLE_SIZE];
         successors = new SynchronizedFixedLinkedList<>(NUM_SUCCESSORS);
 
@@ -85,7 +86,7 @@ public class FingerTable {
         }
 
         sb.append("\nSuccessors:\n");
-        sb.append("Index\t\t\tID\n");
+        sb.append("Index\t\tID\n");
 
         for (int i = 0; i < successors.size(); i++) {
             sb.append(i);
@@ -130,7 +131,7 @@ public class FingerTable {
 
             fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | InterruptedException | ExecutionException e) {
-            onLookupFailed(keyToLookup);
+            ongoingLookups.operationFailed(keyToLookup, new KeyNotFoundException());
             setFinger(index, self);
             return false;
         }
@@ -195,12 +196,12 @@ public class FingerTable {
             return false;
 
         if (predecessor == null) {
-            predecessor = node;
+            setPredecessor(node);
             return true;
         }
 
         if (between(predecessor, self, node.getId())) {
-            predecessor = node;
+            setPredecessor(node);
             return true;
         }
 
@@ -252,7 +253,7 @@ public class FingerTable {
 
     void informPredecessorOfFailure(NodeInfo node) {
         if (predecessor.equals(node))
-            predecessor = null;
+            setPredecessor(null);
     }
 
     void informSuccessorsOfFailure(NodeInfo node) {
@@ -298,20 +299,6 @@ public class FingerTable {
 
     public boolean keyBelongsToSuccessor(BigInteger key) {
         return between(self, getSuccessor(), key);
-    }
-
-    /**
-     * Called by a LookupResultOperation, signals the lookup for the key is finished
-     *
-     * @param key        key that was searched
-     * @param targetNode node responsible for the key
-     */
-    void onLookupFinished(BigInteger key, NodeInfo targetNode) {
-        ongoingLookups.operationFinished(key, targetNode);
-    }
-
-    void onLookupFailed(BigInteger key) {
-        ongoingLookups.operationFailed(key, new KeyNotFoundException());
     }
 
     boolean findSuccessors(NodeInfo bootstrapperNode) {

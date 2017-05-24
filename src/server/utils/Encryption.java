@@ -1,4 +1,4 @@
-package encryptUtils;
+package server.utils;
 
 import server.exceptions.DecryptionFailedException;
 
@@ -8,7 +8,7 @@ import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 
-public class KeyEncryption {
+public class Encryption {
     private static final String ALGORITHM = "AES";
     private static final int KEY_LENGTH = 128;
 

@@ -2,6 +2,7 @@ package server.communication.operations;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
+import server.communication.Operation;
 
 import java.math.BigInteger;
 

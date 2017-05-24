@@ -4,6 +4,7 @@ import server.chord.FingerTable;
 import server.chord.Node;
 import server.chord.NodeInfo;
 import server.communication.Mailman;
+import server.communication.Operation;
 
 import java.io.IOException;
 import java.math.BigInteger;
