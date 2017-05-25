@@ -52,10 +52,12 @@ public class Mailman {
     public static void sendOperation(NodeInfo destination, Operation operation) throws Exception {
         /* If we want to send the operation to the current node, it is equivalent to just running it.
          * Otherwise, send to the correct node as expected. */
-        if (destination.equals(currentNode.getInfo()))
+        if (destination.equals(currentNode.getInfo())) {
             operation.run(currentNode);
+        }
         else {
-            sendPing(destination).get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
+            CompletableFuture pingFuture = sendPing(destination);
+            pingFuture.get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
             getOrOpenConnection(destination).sendOperation(operation);
         }
     }

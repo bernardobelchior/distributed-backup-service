@@ -106,6 +106,8 @@ public class Connection {
             objectOutputStream.writeObject(new PingOperation(origin));
             objectOutputStream.flush();
         }
+        if(ping == null)
+            System.out.println("ping is null");
         return ping;
     }
 

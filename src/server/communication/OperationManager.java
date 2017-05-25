@@ -11,7 +11,15 @@ public class OperationManager<T, U> {
     }
 
     public CompletableFuture<U> putIfAbsent(T key) {
-        return ongoingOperation.putIfAbsent(key, new CompletableFuture<>());
+        CompletableFuture<U> operation = ongoingOperation.putIfAbsent(key, new CompletableFuture<>());
+
+        /*
+         * Needed because putIfAbsent returns the LAST value associated with the key
+         * If the key-value pair is a new one, this will return null
+         */
+        if(operation == null)
+            operation = ongoingOperation.get(key);
+        return operation;
     }
 
     public void operationFinished(T key, U value) {

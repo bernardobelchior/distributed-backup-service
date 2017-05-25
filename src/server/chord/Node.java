@@ -91,13 +91,16 @@ public class Node {
         CompletableFuture<Void> getPredecessor;
         try {
             getPredecessor = requestSuccessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
+            System.out.println("adfas");
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
 
         try {
+            System.out.println("adfas");
             getPredecessor.get();
+            System.out.println("adfas");
         } catch (CancellationException | ExecutionException | InterruptedException e) {
             return false;
         }

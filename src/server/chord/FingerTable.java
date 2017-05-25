@@ -297,12 +297,21 @@ public class FingerTable {
      */
     private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
         /* Check if requested lookup is already being done */
+//        CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
+        if(ongoingLookups.get(key) != null)
+            return ongoingLookups.get(key);
+//
+//        if(lookupResult == null)
+//            System.out.println("null");
+//
+        //FIXME its working like this, should it stay like this??
+//        if (lookupResult != null)
+//            return lookupResult;
+//
+//        lookupResult = ongoingLookups.get(key);
+
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
 
-        if (lookupResult != null)
-            return lookupResult;
-
-        lookupResult = ongoingLookups.get(key);
         try {
             Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
         } catch (Exception e) {
@@ -332,6 +341,7 @@ public class FingerTable {
             try {
                 successorLookup.get();
             } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
                 /* If the lookup did not complete correctly */
                 return false;
             }
