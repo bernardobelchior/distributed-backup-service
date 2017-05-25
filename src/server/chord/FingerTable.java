@@ -4,6 +4,7 @@ import server.communication.Mailman;
 import server.communication.OperationManager;
 import server.communication.operations.LookupOperation;
 import server.communication.operations.NotifyOperation;
+import server.communication.operations.PingOperation;
 import server.exceptions.KeyNotFoundException;
 import server.utils.SynchronizedFixedLinkedList;
 
@@ -20,6 +21,7 @@ public class FingerTable {
     static final int LOOKUP_TIMEOUT = 2000; // In milliseconds
 
     public final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
+    public final OperationManager<BigInteger, NodeInfo> ongoingPings = new OperationManager<>();
 
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
@@ -348,10 +350,10 @@ public class FingerTable {
     private boolean pingSuccessor(NodeInfo node) {
         BigInteger successorKey = getSuccessorKey(node);
 
-        CompletableFuture<NodeInfo> findSuccessor = lookup(successorKey);
+        CompletableFuture<NodeInfo> ping = pingNode(node);
 
         try {
-            findSuccessor.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+            ping.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | ExecutionException e) {
             ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
             return false;
@@ -362,6 +364,21 @@ public class FingerTable {
         }
 
         return true;
+    }
+
+    private CompletableFuture<NodeInfo> pingNode(NodeInfo node) {
+        BigInteger key = getSuccessorKey(node);
+        CompletableFuture<NodeInfo> pingResult = ongoingPings.putIfAbsent(key);
+        if (pingResult != null)
+            return pingResult;
+
+        pingResult = ongoingPings.get(key);
+        try {
+            Mailman.sendOperation(node, new PingOperation(self));
+        } catch (IOException e) {
+            pingResult.completeExceptionally(e);
+        }
+        return pingResult;
     }
 
     /**

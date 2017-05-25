@@ -16,5 +16,6 @@ public class PingResponseOperation extends Operation {
     @Override
     public void run(Node currentNode) {
         System.out.println("Received ping response from node with ID " + origin.getId());
+        currentNode.onPingResponse(origin);
     }
 }

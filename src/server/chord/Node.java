@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.*;
 
 import static server.chord.DistributedHashTable.OPERATION_TIMEOUT;
+import static server.utils.Utils.getSuccessorKey;
 
 public class Node {
     public static final int MAX_NODES = 128;
@@ -333,5 +334,10 @@ public class Node {
 
     public boolean removeValue(BigInteger key) {
         return dht.deleteKey(key);
+    }
+
+    public void onPingResponse(NodeInfo node) {
+       BigInteger key = getSuccessorKey(node);
+       fingerTable.ongoingPings.operationFinished(key,node);
     }
 }
