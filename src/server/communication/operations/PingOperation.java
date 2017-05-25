@@ -4,6 +4,8 @@ import server.chord.NodeInfo;
 import server.communication.Mailman;
 import server.communication.Operation;
 
+import java.io.IOException;
+
 /**
  * Created by epassos on 5/25/17.
  */
@@ -14,7 +16,11 @@ public class PingOperation extends Operation{
 
     @Override
     public void run(Node currentNode) {
-        PingResponseOperation response = new PingResponseOperation(currentNode);
-        Mailman.sendOperation(origin,response);
+        PingResponseOperation response = new PingResponseOperation(currentNode.getInfo());
+        try {
+            Mailman.sendOperation(origin,response);
+        } catch (IOException e) {
+            System.err.println("Error on Ping Operation");
+        }
     }
 }
