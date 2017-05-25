@@ -3,12 +3,15 @@ package server.communication;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
+import server.communication.operations.PingOperation;
+import server.communication.operations.PingResultOperation;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 
@@ -38,13 +41,13 @@ public class Connection {
         return !socket.isClosed();
     }
 
-    public void sendOperation(Operation operation) throws Exception {
+    public void sendOperation(Operation operation) throws IOException {
         try {
             synchronized (objectOutputStream) {
                 objectOutputStream.writeObject(operation);
                 objectOutputStream.flush();
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
             throw e;
         }
@@ -92,7 +95,24 @@ public class Connection {
         }
     }
 
-    public NodeInfo getNodeInfo() {
+    NodeInfo getNodeInfo() {
         return destination;
+    }
+
+    CompletableFuture<Void> ping(NodeInfo origin, NodeInfo destination) throws IOException {
+        CompletableFuture<Void> ping = Mailman.ongoingPings.putIfAbsent(destination.getId());
+
+        synchronized (objectOutputStream) {
+            objectOutputStream.writeObject(new PingOperation(origin));
+            objectOutputStream.flush();
+        }
+        return ping;
+    }
+
+    void pong(NodeInfo origin) throws IOException {
+        synchronized (objectOutputStream) {
+            objectOutputStream.writeObject(new PingResultOperation(origin));
+            objectOutputStream.flush();
+        }
     }
 }

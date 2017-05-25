@@ -7,15 +7,15 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class Mailman {
     private static final int MAX_SIMULTANEOUS_CONNECTIONS = 128;
 
-    public static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
     private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
+    public static final int PING_TIMEOUT = 1000;
+    public static final OperationManager<Integer, Void> ongoingPings = new OperationManager<>();
 
     private static Node currentNode;
 
@@ -41,18 +41,23 @@ public class Mailman {
                 : addOpenConnection(new Connection(nodeInfo));
     }
 
-    public static void sendOperation(NodeInfo destination, Operation operation) throws IOException {
-        if (operation == null) {
-            System.err.println("Received null object to send.");
-            return;
-        }
+    public static void sendPong(NodeInfo destination) throws Exception {
+        getOrOpenConnection(destination).pong(currentNode.getInfo());
+    }
 
+    public static CompletableFuture<Void> sendPing(NodeInfo destination) throws Exception {
+        return getOrOpenConnection(destination).ping(currentNode.getInfo(), destination);
+    }
+
+    public static void sendOperation(NodeInfo destination, Operation operation) throws Exception {
         /* If we want to send the operation to the current node, it is equivalent to just running it.
          * Otherwise, send to the correct node as expected. */
         if (destination.equals(currentNode.getInfo()))
             operation.run(currentNode);
-        else
+        else {
+            sendPing(destination).get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
             getOrOpenConnection(destination).sendOperation(operation);
+        }
     }
 
     public static void listenForConnections(int port) {

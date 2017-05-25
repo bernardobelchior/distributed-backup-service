@@ -6,7 +6,6 @@ import server.chord.NodeInfo;
 import server.communication.Mailman;
 import server.communication.Operation;
 
-import java.io.IOException;
 import java.math.BigInteger;
 
 import static server.chord.DistributedHashTable.MAXIMUM_HOPS;
@@ -39,7 +38,7 @@ public class LookupOperation extends Operation {
             try {
                 Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
                 currentNode.informAboutExistence(origin);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 currentNode.informAboutFailure(origin);
             } finally {
                 currentNode.informAboutExistence(lastNode);
@@ -63,7 +62,7 @@ public class LookupOperation extends Operation {
         try {
             Mailman.sendOperation(nextBestNode, this);
             currentNode.informAboutExistence(origin);
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.out.format("Failure of node with ID %d\n", nextBestNode.getId());
             currentNode.informAboutFailure(nextBestNode);
         } finally {

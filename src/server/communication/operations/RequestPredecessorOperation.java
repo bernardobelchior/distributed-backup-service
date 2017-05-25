@@ -5,8 +5,6 @@ import server.chord.NodeInfo;
 import server.communication.Mailman;
 import server.communication.Operation;
 
-import java.io.IOException;
-
 public class RequestPredecessorOperation extends Operation {
 
     public RequestPredecessorOperation(NodeInfo origin) {
@@ -21,7 +19,7 @@ public class RequestPredecessorOperation extends Operation {
         try {
             Mailman.sendOperation(origin, operation);
             currentNode.informAboutExistence(origin);
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Request predecessor informing about failure.");
             currentNode.informAboutFailure(origin);
         }

@@ -4,7 +4,6 @@ import server.communication.Mailman;
 import server.communication.OperationManager;
 import server.communication.operations.LookupOperation;
 import server.communication.operations.NotifyOperation;
-import server.communication.operations.PingOperation;
 import server.exceptions.KeyNotFoundException;
 import server.utils.SynchronizedFixedLinkedList;
 
@@ -13,15 +12,17 @@ import java.math.BigInteger;
 import java.util.concurrent.*;
 
 import static server.chord.Node.MAX_NODES;
-import static server.utils.Utils.*;
+import static server.communication.Mailman.PING_TIMEOUT;
+import static server.utils.Utils.addToNodeId;
+import static server.utils.Utils.between;
 
 public class FingerTable {
-    public static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
-    public static final int NUM_SUCCESSORS = 5;
-    static final int LOOKUP_TIMEOUT = 2000; // In milliseconds
+    private static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
+    private static final int NUM_SUCCESSORS = 5;
+    private static final int LOOKUP_TIMEOUT = 500; // In milliseconds
 
-    public final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
-    public final OperationManager<BigInteger, NodeInfo> ongoingPings = new OperationManager<>();
+    final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
+    //final OperationManager<BigInteger, NodeInfo> ongoingPings = new OperationManager<>();
 
     private NodeInfo predecessor;
     private final NodeInfo[] fingers;
@@ -271,7 +272,7 @@ public class FingerTable {
         if (successors.get(0).equals(node)) {
             try {
                 Mailman.sendOperation(successors.get(1), new NotifyOperation(self));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -304,7 +305,7 @@ public class FingerTable {
         lookupResult = ongoingLookups.get(key);
         try {
             Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
-        } catch (IOException e) {
+        } catch (Exception e) {
             lookupResult.completeExceptionally(e);
         }
 
@@ -348,38 +349,46 @@ public class FingerTable {
     }
 
     private boolean pingSuccessor(NodeInfo node) {
-        BigInteger successorKey = getSuccessorKey(node);
-
-        CompletableFuture<NodeInfo> ping = pingNode(node);
-
         try {
-            ping.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | ExecutionException e) {
-            ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
-            return false;
-        } catch (InterruptedException | CancellationException e) {
-            ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
+            Mailman.sendPing(node).get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
 
         return true;
+        // BigInteger successorKey = getSuccessorKey(node);
+
+        // CompletableFuture<NodeInfo> ping = pingNode(node);
+
+        // try {
+        //     ping.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+        // } catch (TimeoutException | ExecutionException e) {
+        //     ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
+        //     return false;
+        // } catch (InterruptedException | CancellationException e) {
+        //     ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
+        //     e.printStackTrace();
+        //     return false;
+        //}
+
+        // return true;
     }
 
-    private CompletableFuture<NodeInfo> pingNode(NodeInfo node) {
-        BigInteger key = getSuccessorKey(node);
-        CompletableFuture<NodeInfo> pingResult = ongoingPings.putIfAbsent(key);
-        if (pingResult != null)
-            return pingResult;
-
-        pingResult = ongoingPings.get(key);
-        try {
-            Mailman.sendOperation(node, new PingOperation(self));
-        } catch (IOException e) {
-            pingResult.completeExceptionally(e);
-        }
-        return pingResult;
-    }
+//    private CompletableFuture<NodeInfo> pingNode(NodeInfo node) {
+//        BigInteger key = getSuccessorKey(node);
+//        CompletableFuture<NodeInfo> pingResult = ongoingPings.putIfAbsent(key);
+//        if (pingResult != null)
+//            return pingResult;
+//
+//        pingResult = ongoingPings.get(key);
+//        try {
+//            Mailman.sendOperation(node, new PingOperation(self));
+//        } catch (Exception e) {
+//            pingResult.completeExceptionally(e);
+//        }
+//        return pingResult;
+//    }
 
     /**
      * Get the node's successor's predecessor, check if it is not the current node
@@ -397,7 +406,7 @@ public class FingerTable {
 
         try {
             Mailman.sendOperation(getSuccessor(), notification);
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Unable to notify successor");
         }
     }
