@@ -112,17 +112,22 @@ public class FingerTable {
         }
     }
 
-    private boolean getFinger(int index) {
-        BigInteger keyToLookup = BigInteger.valueOf(addToNodeId(self.getId(), (int) Math.pow(2, index)));
+    private static int getFingerKey(NodeInfo node, int index) {
+        return addToNodeId(node.getId(), (int) Math.pow(2, index));
+    }
 
-        System.out.println("Looking up key " + Integer.remainderUnsigned(keyToLookup.intValue(), MAX_NODES));
+    private boolean getFinger(int index) {
+        BigInteger keyToLookup = BigInteger.valueOf(getFingerKey(self, index));
+
         /* Check if the finger belongs to the successors. If it does, then we don't need to look it up. */
+        /* int lower = addToNodeId(self.getId(), -1);
+        FIXME: Useful optimization, but has a problem when the current node ID stands between successors
         for (int i = 0; i < successors.size(); i++) {
-            if (between(self, successors.get(i), keyToLookup)) {
+            if (between(lower, successors.get(i).getId(), keyToLookup)) {
                 setFinger(index, successors.get(i));
                 return true;
             }
-        }
+        }*/
 
         try {
             CompletableFuture<Void> fingerLookup = lookup(keyToLookup).thenAcceptAsync(
@@ -147,9 +152,13 @@ public class FingerTable {
     void updateFingerTable(NodeInfo node) {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
 
-        for (int i = 0; i < fingers.length; i++)
-            if (between(addToNodeId(self.getId(), (int) Math.pow(2, i)), fingers[i].getId(), keyEquivalent))
-                setFinger(i, node);
+        for (int i = 0; i < fingers.length; i++) {
+            int lower = addToNodeId(self.getId(), (int) Math.pow(2, i) - 1);
+            if (between(lower, fingers[i].getId(), keyEquivalent)) {
+                if (!fingers[i].equals(node))
+                    setFinger(i, node);
+            }
+        }
     }
 
     /**
@@ -250,14 +259,24 @@ public class FingerTable {
                 getFinger(i);
     }
 
-
     void informPredecessorOfFailure(NodeInfo node) {
         if (predecessor.equals(node))
             setPredecessor(null);
     }
 
     void informSuccessorsOfFailure(NodeInfo node) {
+        /* Inform my second successor that its predecessor failed. */
+        if (successors.get(0).equals(node)) {
+            try {
+                Mailman.sendOperation(successors.get(1), new NotifyOperation(self));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        System.err.println("Node with ID " + node.getId() + " failed!");
         if (successors.remove(node)) {
+            System.err.println("removed");
             if (successors.isEmpty())
                 lookup(BigInteger.valueOf(addToNodeId(self.getId(), 1)));
             else
@@ -291,14 +310,10 @@ public class FingerTable {
     }
 
     CompletableFuture<NodeInfo> lookup(BigInteger key) {
-        if (keyBelongsToSuccessor(key)) {
-            //System.out.println("Key " + Integer.remainderUnsigned(key.intValue(), MAX_NODES) + " belongs to successor!");
+        if (keyBelongsToSuccessor(key))
             return lookupFrom(key, getSuccessor());
-
-        } else {
-            //System.out.println("Key " + Integer.remainderUnsigned(key.intValue(), MAX_NODES) + " being sent to next best node!");
+        else
             return lookupFrom(key, getNextBestNode(key));
-        }
     }
 
     public boolean keyBelongsToSuccessor(BigInteger key) {
@@ -384,6 +399,7 @@ public class FingerTable {
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             e.printStackTrace();
             System.err.println("Predecessor not responding, deleting reference");
+            System.err.println("Could not get key " + addToNodeId(keyEquivalent.intValue(), 0));
             Mailman.state();
             ongoingLookups.operationFailed(keyEquivalent, new KeyNotFoundException());
             setPredecessor(null);
@@ -395,7 +411,7 @@ public class FingerTable {
             return;
 
         stabilizeSuccessors();
-        stabilizePredecessor();
+        //stabilizePredecessor();
         fill();
     }
 }

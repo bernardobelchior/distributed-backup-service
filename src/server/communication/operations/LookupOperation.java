@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 import static server.chord.DistributedHashTable.MAXIMUM_HOPS;
-import static server.chord.Node.MAX_NODES;
 
 public class LookupOperation extends Operation {
     private BigInteger key;
@@ -33,19 +32,17 @@ public class LookupOperation extends Operation {
         if (--timeToLive < 0)
             return;
 
-        NodeInfo senderNode = lastNode;
-        lastNode = currentNode.getInfo();
+        NodeInfo lastNode = this.lastNode;
+        this.lastNode = currentNode.getInfo();
 
         if (reachedDestination) {
             try {
-                if (origin.getId() == 106)
-                    System.out.println("Key " + Integer.remainderUnsigned(key.intValue(), MAX_NODES) + " belongs to me!");
                 Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
                 currentNode.informAboutExistence(origin);
             } catch (IOException e) {
                 currentNode.informAboutFailure(origin);
             } finally {
-                currentNode.informAboutExistence(senderNode);
+                currentNode.informAboutExistence(lastNode);
             }
 
             return;
@@ -59,6 +56,10 @@ public class LookupOperation extends Operation {
         if (currentNode.getInfo().equals(nextBestNode))
             nextBestNode = currentNode.getSuccessor();
 
+        if (key.intValue() == 42)
+            System.out.println("Looking for key 42 from " + origin.getId() + ", sending to " + nextBestNode.getId() + ". Came from " + origin.getId());
+
+
         try {
             Mailman.sendOperation(nextBestNode, this);
             currentNode.informAboutExistence(origin);
@@ -66,7 +67,7 @@ public class LookupOperation extends Operation {
             System.out.format("Failure of node with ID %d\n", nextBestNode.getId());
             currentNode.informAboutFailure(nextBestNode);
         } finally {
-            currentNode.informAboutExistence(senderNode);
+            currentNode.informAboutExistence(lastNode);
         }
     }
 }

@@ -12,26 +12,25 @@ import java.io.ObjectOutputStream;
 import java.util.concurrent.ExecutorService;
 
 
-
 public class Connection {
     private final SSLSocket socket;
-    private final ObjectOutputStream outputStream;
-    private final ObjectInputStream inputStream;
-    private NodeInfo nodeInfo;
+    private final ObjectOutputStream objectOutputStream;
+    private final ObjectInputStream objectInputStream;
+    private NodeInfo destination;
 
-    Connection(NodeInfo nodeInfo) throws IOException {
-        this.nodeInfo = nodeInfo;
+    Connection(NodeInfo destination) throws IOException {
+        this.destination = destination;
         socket = (SSLSocket) SSLSocketFactory.getDefault().
-                createSocket(nodeInfo.getAddress(), nodeInfo.getPort());
+                createSocket(destination.getAddress(), destination.getPort());
 
-        outputStream = new ObjectOutputStream(socket.getOutputStream());
-        inputStream = new ObjectInputStream(socket.getInputStream());
+        objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+        objectInputStream = new ObjectInputStream(socket.getInputStream());
     }
 
     Connection(SSLSocket socket, Node currentNode, ExecutorService connectionsThreadPool) throws IOException {
         this.socket = socket;
-        outputStream = new ObjectOutputStream(socket.getOutputStream());
-        inputStream = new ObjectInputStream(socket.getInputStream());
+        objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+        objectInputStream = new ObjectInputStream(socket.getInputStream());
         connectionsThreadPool.submit(() -> waitForAuthentication(currentNode));
     }
 
@@ -39,33 +38,44 @@ public class Connection {
         return !socket.isClosed();
     }
 
-    public void sendOperation(Operation operation) throws IOException {
-        synchronized (outputStream) {
-            outputStream.writeObject(operation);
-        }
-    }
-
-    public synchronized void waitForAuthentication(Node currentNode) {
+    public void sendOperation(Operation operation) throws Exception {
         try {
-            Operation operation = ((Operation) inputStream.readObject());
-            this.nodeInfo = operation.getOrigin();
-            Mailman.addOpenConnection(this);
-            operation.run(currentNode);
-        } catch (ClassNotFoundException | IOException e) {
+            synchronized (objectOutputStream) {
+                objectOutputStream.writeObject(operation);
+                objectOutputStream.flush();
+            }
+        } catch (Exception e) {
             e.printStackTrace();
+            throw e;
         }
     }
 
-    public void listen(Node currentNode) {
+    public synchronized void waitForAuthentication(Node self) {
+        try {
+            Operation operation;
+            operation = ((Operation) objectInputStream.readObject());
+
+            this.destination = operation.getOrigin();
+            Mailman.addOpenConnection(this);
+            operation.run(self);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+            self.informAboutFailure(destination);
+            closeConnection();
+        }
+    }
+
+    public void listen(Node self) {
         while (true) {
             try {
-                synchronized (this) {
-                    ((Operation) inputStream.readObject()).run(currentNode);
-                }
+                ((Operation) objectInputStream.readObject()).run(self);
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
-                currentNode.informAboutFailure(nodeInfo);
+                e.printStackTrace();
+                self.informAboutFailure(destination);
                 closeConnection();
                 return;
             }
@@ -73,7 +83,7 @@ public class Connection {
     }
 
     private synchronized void closeConnection() {
-        Mailman.connectionClosed(nodeInfo);
+        Mailman.connectionClosed(destination);
 
         try {
             socket.close();
@@ -83,6 +93,6 @@ public class Connection {
     }
 
     public NodeInfo getNodeInfo() {
-        return nodeInfo;
+        return destination;
     }
 }

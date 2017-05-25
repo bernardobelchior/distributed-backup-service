@@ -151,10 +151,10 @@ public class Node {
     }
 
     private boolean ensureReplication(BigInteger key, byte[] value) {
-        NodeInfo node;
+        NodeInfo nthSuccessor;
         for (int i = 1; i < REPLICATION_DEGREE; i++) {
             try {
-                node = fingerTable.getNthSuccessor(i);
+                nthSuccessor = fingerTable.getNthSuccessor(i);
             } catch (IndexOutOfBoundsException e) {
                 System.err.println("Replication of file with key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " failed.\n" +
                         "Current replication degree is " + i + ".");
@@ -163,9 +163,9 @@ public class Node {
             }
 
             try {
-                Mailman.sendOperation(node, new ReplicationOperation(self, key, value));
+                Mailman.sendOperation(nthSuccessor, new ReplicationOperation(self, key, value));
             } catch (IOException e) {
-                informAboutFailure(node);
+                informAboutFailure(nthSuccessor);
                 i--;
             }
         }
@@ -227,17 +227,32 @@ public class Node {
     }
 
     public void informAboutFailure(NodeInfo node) {
-        System.err.println("Node with ID " + node.getId() + " has failed.");
-        if (fingerTable.getPredecessor().equals(node)) {
-            ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.remove(node.getId());
-            dht.storeKeys(replicas);
-            System.err.println("Node " + node.getId() + " failed. Replicating keys to " + fingerTable.getNthSuccessor(REPLICATION_DEGREE - 2).getId());
-            replicateTo(replicas, fingerTable.getNthSuccessor(REPLICATION_DEGREE - 2));
+        if (node.equals(self)) {
+            try {
+                throw new Exception("Trying to inform about self.");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return;
         }
+
+        System.err.println("Node with ID " + node.getId() + " has failed.");
+        Mailman.state();
+        NodeInfo predecessor = fingerTable.getPredecessor();
 
         fingerTable.informSuccessorsOfFailure(node);
         fingerTable.informFingersOfFailure(node);
         fingerTable.informPredecessorOfFailure(node);
+
+        if (predecessor.equals(node)) {
+            ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.remove(node.getId());
+            if (replicas == null)
+                return;
+
+            dht.storeKeys(replicas);
+            System.err.println("Node " + node.getId() + " failed. Replicating keys to " + fingerTable.getNthSuccessor(REPLICATION_DEGREE - 2).getId());
+            replicateTo(replicas, fingerTable.getNthSuccessor(REPLICATION_DEGREE - 2));
+        }
     }
 
     private boolean replicateTo(ConcurrentHashMap<BigInteger, byte[]> replicas, NodeInfo node) {

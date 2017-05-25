@@ -19,6 +19,10 @@ public class Utils {
         return Integer.remainderUnsigned(nodeId + value, MAX_NODES);
     }
 
+    public static int getNodeFromKey(BigInteger key) {
+        return Integer.remainderUnsigned(key.intValue(), MAX_NODES);
+    }
+
     public static BigInteger getSuccessorKey(NodeInfo nodeInfo) {
         return BigInteger.valueOf(addToNodeId(nodeInfo.getId(), 1));
     }
@@ -81,7 +85,7 @@ public class Utils {
     }
 
 	/*public byte[] turnToByteArray(Object object){
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		ObjectOutput out = null;
 		byte[] bArray = null;
 		try {

@@ -42,7 +42,20 @@ public class SynchronizedFixedLinkedList<T> {
     }
 
     public boolean remove(Object object) {
-        return list.remove(object);
+        @SuppressWarnings("unchecked")
+        T toRemove = (T) object;
+
+        if (toRemove == null)
+            return false;
+
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).equals(toRemove)) {
+                list.remove(i);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public T last() {
