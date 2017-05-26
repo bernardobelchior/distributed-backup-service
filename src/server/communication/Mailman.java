@@ -14,7 +14,7 @@ public class Mailman {
 
     private static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
     private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
-    public static final int PING_TIMEOUT = 5000;
+    public static final int PING_TIMEOUT = 30000;
     public static final OperationManager<Integer, Void> ongoingPings = new OperationManager<>();
 
     private static Node currentNode;
@@ -42,7 +42,7 @@ public class Mailman {
     }
 
     public static void sendPong(NodeInfo destination) throws Exception {
-        getOrOpenConnection(destination).pong(destination,currentNode.getInfo());
+        getOrOpenConnection(destination).pong(currentNode,currentNode.getInfo());
     }
 
     public static CompletableFuture<Void> sendPing(NodeInfo destination) throws Exception {
@@ -53,14 +53,12 @@ public class Mailman {
         /* If we want to send the operation to the current node, it is equivalent to just running it.
          * Otherwise, send to the correct node as expected. */
         if (destination.equals(currentNode.getInfo())) {
-            System.out.println("Running op");
             operation.run(currentNode);
         }
         else {
             System.out.println("Sending ping to node " + destination.getId());
             CompletableFuture pingFuture = sendPing(destination);
             pingFuture.get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
-            System.out.println("Sending op");
             getOrOpenConnection(destination).sendOperation(operation);
         }
     }

@@ -6,8 +6,11 @@ import server.communication.Mailman;
 import server.communication.Operation;
 
 public class PingOperation extends Operation {
+    boolean isPong;
+
     public PingOperation(NodeInfo origin) {
         super(origin);
+        this.isPong = isPong;
     }
 
     @Override

@@ -358,39 +358,7 @@ public class FingerTable {
         }
 
         return true;
-        // BigInteger successorKey = getSuccessorKey(node);
-
-        // CompletableFuture<NodeInfo> ping = pingNode(node);
-
-        // try {
-        //     ping.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-        // } catch (TimeoutException | ExecutionException e) {
-        //     ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
-        //     return false;
-        // } catch (InterruptedException | CancellationException e) {
-        //     ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
-        //     e.printStackTrace();
-        //     return false;
-        //}
-
-        // return true;
     }
-
-//    private CompletableFuture<NodeInfo> pingNode(NodeInfo node) {
-//        BigInteger key = getSuccessorKey(node);
-//        CompletableFuture<NodeInfo> pingResult = ongoingPings.putIfAbsent(key);
-//        if (pingResult != null)
-//            return pingResult;
-//
-//        pingResult = ongoingPings.get(key);
-//        try {
-//            Mailman.sendOperation(node, new PingOperation(self));
-//        } catch (Exception e) {
-//            pingResult.completeExceptionally(e);
-//        }
-//        return pingResult;
-//    }
-
     /**
      * Get the node's successor's predecessor, check if it is not the current node
      * and notify the successor of this node's existence

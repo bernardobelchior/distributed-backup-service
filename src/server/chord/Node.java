@@ -1,5 +1,6 @@
 package server.chord;
 
+import jdk.nashorn.internal.runtime.ECMAException;
 import server.communication.Mailman;
 import server.communication.Operation;
 import server.communication.OperationManager;
@@ -213,6 +214,7 @@ public class Node {
                 sendKeysToNode(newPredecessor,
                         dht.getKeysBelongingTo(newPredecessor)).get(OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
             } catch (Exception e) {
+                e.printStackTrace();
                 informAboutFailure(newPredecessor);
                 return false;
             }

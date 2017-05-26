@@ -42,6 +42,8 @@ public class Connection {
     }
 
     public void sendOperation(Operation operation) throws IOException {
+        System.out.println("Sending Operation");
+
         try {
             synchronized (objectOutputStream) {
                 objectOutputStream.writeObject(operation);
@@ -51,13 +53,14 @@ public class Connection {
             e.printStackTrace();
             throw e;
         }
+        System.out.println("Sent Operation");
     }
 
     public synchronized void waitForAuthentication(Node self) {
         try {
             Operation operation;
+            System.out.println("WaitForAuth :: received");
             operation = ((Operation) objectInputStream.readObject());
-
             this.destination = operation.getOrigin();
             Mailman.addOpenConnection(this);
             operation.run(self);
@@ -100,29 +103,32 @@ public class Connection {
     }
 
     CompletableFuture<Void> ping(NodeInfo origin, NodeInfo destination) throws IOException {
-        System.out.println("Putting with key" + destination.getId());
         CompletableFuture<Void> ping = Mailman.ongoingPings.putIfAbsent(destination.getId());
 
-        if(ping != null)
+        if (ping != null)
             return ping;
 
         ping = Mailman.ongoingPings.get(destination.getId());
 
+        System.out.println("Pinging Node " + destination.getId());
         synchronized (objectOutputStream) {
             objectOutputStream.writeObject(new PingOperation(origin));
             objectOutputStream.flush();
         }
+        System.out.println("Pinged Node " + destination.getId());
 
         return ping;
     }
 
-    void pong(NodeInfo origin, NodeInfo currentNode) throws IOException {
+    void pong(Node node, NodeInfo currentNode) throws IOException {
 
-        System.out.println("ponging node " + origin.getId());
+        System.out.println("ponging node " + destination.getId());
+
         synchronized (objectOutputStream) {
-            objectOutputStream.writeObject(new PingResultOperation(currentNode));
+            PingResultOperation pingResultOperation = new PingResultOperation(currentNode);
+            objectOutputStream.writeObject(pingResultOperation);
             objectOutputStream.flush();
         }
-        System.out.println("ponged node " + origin.getId());
+        System.out.println("ponged node " + destination.getId());
     }
 }
