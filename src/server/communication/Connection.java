@@ -38,13 +38,13 @@ public class Connection {
         return !socket.isClosed();
     }
 
-    public void sendOperation(Operation operation) throws Exception {
+    public void sendOperation(Operation operation) throws IOException {
         try {
             synchronized (objectOutputStream) {
                 objectOutputStream.writeObject(operation);
                 objectOutputStream.flush();
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
             throw e;
         }

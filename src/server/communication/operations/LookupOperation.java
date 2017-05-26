@@ -56,10 +56,6 @@ public class LookupOperation extends Operation {
         if (currentNode.getInfo().equals(nextBestNode))
             nextBestNode = currentNode.getSuccessor();
 
-        if (key.intValue() == 42)
-            System.out.println("Looking for key 42 from " + origin.getId() + ", sending to " + nextBestNode.getId() + ". Came from " + origin.getId());
-
-
         try {
             Mailman.sendOperation(nextBestNode, this);
             currentNode.informAboutExistence(origin);

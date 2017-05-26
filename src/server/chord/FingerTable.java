@@ -4,7 +4,6 @@ import server.communication.Mailman;
 import server.communication.OperationManager;
 import server.communication.operations.LookupOperation;
 import server.communication.operations.NotifyOperation;
-import server.communication.operations.PingOperation;
 import server.exceptions.KeyNotFoundException;
 import server.utils.SynchronizedFixedLinkedList;
 
@@ -193,7 +192,6 @@ public class FingerTable {
      * @param predecessor new predecessor
      */
     private void setPredecessor(NodeInfo predecessor) {
-        System.err.println("Predecessor set to " + (predecessor == null ? "null" : predecessor.getId()));
         this.predecessor = predecessor;
     }
 
@@ -233,11 +231,13 @@ public class FingerTable {
         synchronized (successors) {
             for (int i = 0; i < successors.size(); i++) {
                 NodeInfo successor = successors.get(i);
+                int nodeKey = node.getId();
+
+                /* If the node is already in the successor list, then do nothing */
                 if (node.equals(successor))
                     return;
 
-                int nodeKey = node.getId();
-
+                /* If the node belongs between two successors, then add it to that position */
                 if (between(lowerNode, successor, nodeKey)) {
                     successors.add(i, node);
                     return;
@@ -347,47 +347,16 @@ public class FingerTable {
         return true;
     }
 
-    private boolean pingSuccessor(NodeInfo node) {
-        BigInteger successorKey = getSuccessorKey(node);
-
-        CompletableFuture<NodeInfo> ping = pingNode(node);
-
-        try {
-            ping.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | ExecutionException e) {
-            ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
-            return false;
-        } catch (InterruptedException | CancellationException e) {
-            ongoingLookups.operationFailed(successorKey, new KeyNotFoundException());
-            e.printStackTrace();
-            return false;
-        }
-
-        return true;
-    }
-
-    private CompletableFuture<NodeInfo> pingNode(NodeInfo node) {
-        BigInteger key = getSuccessorKey(node);
-        CompletableFuture<NodeInfo> pingResult = ongoingPings.putIfAbsent(key);
-        if (pingResult != null)
-            return pingResult;
-
-        pingResult = ongoingPings.get(key);
-        try {
-            Mailman.sendOperation(node, new PingOperation(self));
-        } catch (IOException e) {
-            pingResult.completeExceptionally(e);
-        }
-        return pingResult;
-    }
-
     /**
      * Get the node's successor's predecessor, check if it is not the current node
      * and notify the successor of this node's existence
      */
     private void stabilizeSuccessors() {
-        for (int i = 0; i < successors.size(); i++)
-            pingSuccessor(successors.get(i));
+        lookup(getSuccessorKey(self));
+
+        for (int i = 1; i < successors.size(); i++)
+            //pingSuccessor(successors.get(i));
+            lookup(getSuccessorKey(successors.get(i)));
 
         notifySuccessor();
     }
@@ -402,33 +371,15 @@ public class FingerTable {
         }
     }
 
-    private void stabilizePredecessor() {
-        NodeInfo predecessor = getPredecessor();
-        if (self.equals(predecessor) || predecessor == null)
-            return;
-
-        BigInteger keyEquivalent = BigInteger.valueOf(predecessor.getId());
-
-        CompletableFuture<Void> predecessorLookup = lookup(keyEquivalent).thenAcceptAsync(
-                this::updatePredecessor);
-        try {
-            predecessorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            e.printStackTrace();
-            System.err.println("Predecessor not responding, deleting reference");
-            System.err.println("Could not get key " + addToNodeId(keyEquivalent.intValue(), 0));
-            Mailman.state();
-            ongoingLookups.operationFailed(keyEquivalent, new KeyNotFoundException());
-            setPredecessor(null);
-        }
-    }
-
     void stabilizationProtocol() {
         if (!hasSuccessors())
             return;
 
         stabilizeSuccessors();
-        //stabilizePredecessor();
         fill();
+    }
+
+    public SynchronizedFixedLinkedList<NodeInfo> getSuccessors() {
+        return successors;
     }
 }

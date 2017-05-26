@@ -27,6 +27,10 @@ public class Utils {
         return BigInteger.valueOf(addToNodeId(nodeInfo.getId(), 1));
     }
 
+    public static BigInteger getSuccessorKey(int nodeId) {
+        return BigInteger.valueOf(addToNodeId(nodeId, 1));
+    }
+
     /**
      * Check if a given key is between the lower and upper keys in the Chord circle
      *

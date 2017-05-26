@@ -11,15 +11,18 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.*;
 
 import static server.chord.DistributedHashTable.OPERATION_TIMEOUT;
+import static server.chord.FingerTable.LOOKUP_TIMEOUT;
 import static server.utils.Utils.getSuccessorKey;
 
 public class Node {
     public static final int MAX_NODES = 128;
-    private static final int REPLICATION_DEGREE = 2;
+    private static final int REPLICATION_DEGREE = 3;
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
@@ -29,12 +32,13 @@ public class Node {
     public final OperationManager<Integer, Boolean> ongoingKeySendings = new OperationManager<>();
 
     public final OperationManager<BigInteger, Boolean> ongoingDeletes = new OperationManager<>();
-    public final OperationManager<BigInteger, Boolean> ongoingPuts = new OperationManager<>();
+    public final OperationManager<BigInteger, Boolean> ongoingInsertions = new OperationManager<>();
     public final OperationManager<BigInteger, byte[]> ongoingGets = new OperationManager<>();
 
     private final ConcurrentHashMap<Integer, ConcurrentHashMap<BigInteger, byte[]>> replicatedValues = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private final ScheduledExecutorService stabilizationExecutor = Executors.newScheduledThreadPool(5);
+    private ConcurrentHashMap<BigInteger, Integer> unfinishedReplications = new ConcurrentHashMap<>();
 
     /**
      * @param address Address of this server
@@ -144,23 +148,69 @@ public class Node {
     }
 
     public void initializeStabilization() {
-        stabilizationExecutor.scheduleWithFixedDelay(fingerTable::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
+        stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
+
+    }
+
+    private void stabilizationProtocol() {
+        fingerTable.stabilizationProtocol();
+        updateOwnKeysReplication();
+        checkReplicasOwners();
+    }
+
+    /**
+     * Checks if the replica owner is alive and syncs the replicas with it.
+     * If it is not alive, then insert all of its keys in the network.
+     */
+    private void checkReplicasOwners() {
+        for (Map.Entry<Integer, ConcurrentHashMap<BigInteger, byte[]>> entry : replicatedValues.entrySet()) {
+            try {
+                NodeInfo owner = fingerTable.lookup(BigInteger.valueOf(entry.getKey())).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+
+                Mailman.sendOperation(
+                        owner,
+                        new ReplicationSyncOperation(
+                                self,
+                                new HashSet<>(Collections.list(entry.getValue().keys()))));
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                entry.getValue().forEach(this::insert);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                System.out.println("checkReplicasOwners:: error on get.");
+                checkReplicasOwners();
+            }
+        }
+    }
+
+    /**
+     * This function is run periodically and ensures that the replication is
+     * at least REPLICATION_DEGREE, if there are at least REPLICATION_DEGREE nodes
+     * in the network.
+     */
+    private void updateOwnKeysReplication() {
+        for (Map.Entry<BigInteger, Integer> entry : unfinishedReplications.entrySet()) {
+            for (int i = entry.getValue(); i < REPLICATION_DEGREE; i++)
+                ensureReplication(entry.getKey(), dht.getLocalValue(entry.getKey()));
+        }
     }
 
     public boolean storeKey(BigInteger key, byte[] value) {
-        return dht.storeKey(key, value) && ensureReplication(key, value);
+        boolean result = dht.storeKey(key, value);
+        ensureReplication(key, value);
+        return result;
     }
 
-    private boolean ensureReplication(BigInteger key, byte[] value) {
+    private void ensureReplication(BigInteger key, byte[] value) {
         NodeInfo nthSuccessor;
-        for (int i = 1; i < REPLICATION_DEGREE; i++) {
+        for (int i = unfinishedReplications.getOrDefault(key, 1); i < REPLICATION_DEGREE; i++) {
             try {
-                nthSuccessor = fingerTable.getNthSuccessor(i);
+                nthSuccessor = fingerTable.getNthSuccessor(i - 1);
             } catch (IndexOutOfBoundsException e) {
                 System.err.println("Replication of file with key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " failed.\n" +
                         "Current replication degree is " + i + ".");
-                //FIXME: Try again later.
-                return true;
+                unfinishedReplications.put(key, i);
+                return;
             }
 
             try {
@@ -170,8 +220,6 @@ public class Node {
                 i--;
             }
         }
-
-        return true;
     }
 
     public void storeReplica(NodeInfo node, BigInteger key, byte[] value) {
@@ -189,7 +237,7 @@ public class Node {
     }
 
     CompletableFuture<Boolean> insert(BigInteger key, byte[] value) {
-        return operation(ongoingPuts, new InsertOperation(self, key, value), key);
+        return operation(ongoingInsertions, new InsertOperation(self, key, value), key);
     }
 
     private CompletableFuture<Boolean> sendKeysToNode(NodeInfo destination, ConcurrentHashMap<BigInteger, byte[]> keys) throws IOException {
@@ -256,18 +304,15 @@ public class Node {
         }
     }
 
-    private boolean replicateTo(ConcurrentHashMap<BigInteger, byte[]> replicas, NodeInfo node) {
+    private void replicateTo(ConcurrentHashMap<BigInteger, byte[]> replicas, NodeInfo node) {
         for (Map.Entry<BigInteger, byte[]> entry : replicas.entrySet()) {
             try {
                 Mailman.sendOperation(node, new ReplicationOperation(self, entry.getKey(), entry.getValue()));
             } catch (IOException e) {
                 informAboutFailure(node);
-                return false;
+                return;
             }
         }
-
-
-        return true;
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
@@ -284,7 +329,7 @@ public class Node {
         sb.append("NodeID\t\tKey\n");
         replicatedValues.forEach((nodeId, keys) -> keys.forEach((key, value) -> {
             sb.append(nodeId);
-            sb.append("\t");
+            sb.append("\t\t\t\t\t");
             sb.append(DatatypeConverter.printHexBinary(key.toByteArray()));
             sb.append("\n");
         }));
@@ -333,11 +378,50 @@ public class Node {
     }
 
     public boolean removeValue(BigInteger key) {
+        //deleteReplication(key);
         return dht.deleteKey(key);
     }
 
     public void onPingResponse(NodeInfo node) {
-       BigInteger key = getSuccessorKey(node);
-       fingerTable.ongoingPings.operationFinished(key,node);
+        BigInteger key = getSuccessorKey(node);
+        fingerTable.ongoingPings.operationFinished(key, node);
+    }
+
+    /**
+     * Synchronizes remote replicas from origin, by sending new keys and informing about old ones.
+     * If the origin is no longer considered to be a valid replica holder, then just delete all of
+     * its keys.
+     *
+     * @param origin Remote node with some replicas.
+     * @param keys
+     */
+    @SuppressWarnings("unchecked")
+    public void synchronizeReplicas(NodeInfo origin, HashSet<BigInteger> keys) {
+        HashSet<BigInteger> keysToDelete;
+
+        if (fingerTable.getSuccessors().contains(origin))
+            keysToDelete = keys;
+        else {
+            keysToDelete = (HashSet<BigInteger>) keys.clone();
+            keysToDelete.removeAll(dht.getAllKeys());
+        }
+
+        try {
+            Mailman.sendOperation(origin, new ReplicationSyncResultOperation(origin, keysToDelete));
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        ConcurrentHashMap<BigInteger, byte[]> toReplicate = dht.getDifference(keys);
+        replicateTo(toReplicate, origin);
+    }
+
+    public void deleteReplicas(NodeInfo origin, HashSet<BigInteger> keysToDelete) {
+        ConcurrentHashMap<BigInteger, byte[]> originReplicas = replicatedValues.get(origin.getId());
+        keysToDelete.forEach(originReplicas::remove);
+
+        if (originReplicas.size() == 0)
+            replicatedValues.remove(origin.getId());
     }
 }

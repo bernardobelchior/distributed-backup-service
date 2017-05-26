@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer {
     private final DistributedHashTable dht;
@@ -41,9 +43,19 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             return false;
         }
 
-        boolean ret = dht.insert(key, file);
-        System.out.println("Filename " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
-        return ret;
+        try {
+            if (dht.insert(key, file)) {
+                System.out.println("File " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
+                return true;
+            } else {
+                System.out.println("File " + pathName + " could not be inserted in the system.");
+                return false;
+            }
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            System.out.println("File " + pathName + " insertion timed out.");
+            e.printStackTrace();
+            return false;
+        }
     }
 
 

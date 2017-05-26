@@ -6,11 +6,10 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 import static server.utils.Utils.between;
 
@@ -21,25 +20,14 @@ public class DistributedHashTable {
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();
     private final FileManager fileManager;
 
-    public DistributedHashTable(Node node) throws IOException, NoSuchAlgorithmException {
+    DistributedHashTable(Node node) throws IOException, NoSuchAlgorithmException {
 
         this.node = node;
         this.fileManager = new FileManager(node.getInfo().getId());
     }
 
-    public boolean insert(BigInteger key, byte[] value) {
-        CompletableFuture<Boolean> insert = node.insert(key, value);
-
-        try {
-            return insert.get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-            System.err.println("Insert operation for key " + DatatypeConverter.printHexBinary(key.toByteArray()) + " timed out. Please try again.");
-            return false;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+    public boolean insert(BigInteger key, byte[] value) throws InterruptedException, ExecutionException, TimeoutException {
+        return node.insert(key, value).get(OPERATION_TIMEOUT, TimeUnit.SECONDS);
     }
 
     public byte[] get(BigInteger key) {
@@ -97,8 +85,8 @@ public class DistributedHashTable {
         sb.append("Current Node ID: ");
         sb.append(node.getInfo().getId());
         sb.append("\n\n");
-
         sb.append(node.toString());
+
         sb.append("\n\nKeys stored:\n");
         localValues.forEach((key, value) -> {
             sb.append(DatatypeConverter.printHexBinary(key.toByteArray()));
@@ -134,7 +122,20 @@ public class DistributedHashTable {
         }
     }
 
-    public byte[] getLocalValue(BigInteger key) {
+    byte[] getLocalValue(BigInteger key) {
         return localValues.get(key);
+    }
+
+    HashSet<BigInteger> getAllKeys() {
+        return new HashSet<>(Collections.list(localValues.keys()));
+    }
+
+    ConcurrentHashMap<BigInteger, byte[]> getDifference(HashSet<BigInteger> keys) {
+        ConcurrentHashMap<BigInteger, byte[]> difference = new ConcurrentHashMap<>();
+        localValues.forEach((key, value) -> {
+            if (keys.contains(key))
+                difference.put(key, value);
+        });
+        return difference;
     }
 }

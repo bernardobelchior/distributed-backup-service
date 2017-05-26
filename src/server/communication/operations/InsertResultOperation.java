@@ -18,6 +18,6 @@ public class InsertResultOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.ongoingPuts.operationFinished(key, successful);
+        currentNode.ongoingInsertions.operationFinished(key, successful);
     }
 }

@@ -6,9 +6,6 @@ import server.communication.Operation;
 
 import java.io.IOException;
 
-/**
- * Created by epassos on 5/25/17.
- */
 public class PingOperation extends Operation{
     public PingOperation(NodeInfo origin){
         super(origin);

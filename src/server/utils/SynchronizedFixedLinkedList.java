@@ -22,18 +22,26 @@ public class SynchronizedFixedLinkedList<T> {
     }
 
     public boolean add(T element) {
-        if (list.size() >= maxSize)
-            return false;
+        synchronized (list) {
+            if (list.size() >= maxSize)
+                return false;
 
-        list.add(element);
+            list.add(element);
+        }
         return true;
     }
 
     public boolean add(int index, T element) {
-        if (list.size() >= maxSize)
+        if (index >= maxSize)
             return false;
 
-        list.add(index, element);
+        synchronized (list) {
+            list.add(index, element);
+
+            if (list.size() >= maxSize)
+                list.remove(list.size() - 1);
+        }
+
         return true;
     }
 
@@ -48,10 +56,12 @@ public class SynchronizedFixedLinkedList<T> {
         if (toRemove == null)
             return false;
 
-        for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).equals(toRemove)) {
-                list.remove(i);
-                return true;
+        synchronized (list) {
+            for (int i = 0; i < list.size(); i++) {
+                if (list.get(i).equals(toRemove)) {
+                    list.remove(i);
+                    return true;
+                }
             }
         }
 
@@ -60,5 +70,9 @@ public class SynchronizedFixedLinkedList<T> {
 
     public T last() {
         return list.get(list.size() - 1);
+    }
+
+    public boolean contains(T element) {
+        return list.contains(element);
     }
 }
