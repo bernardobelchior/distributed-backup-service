@@ -18,6 +18,7 @@ public class LookupResultOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
+        System.out.println("Received pong from node" + origin.getId());
         currentNode.onLookupFinished(key, resultNode);
     }
 

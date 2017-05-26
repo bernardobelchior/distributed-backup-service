@@ -238,7 +238,6 @@ public class Node {
             }
             return;
         }
-
         System.err.println("Node with ID " + node.getId() + " has failed.");
         Mailman.state();
         NodeInfo predecessor = fingerTable.getPredecessor();

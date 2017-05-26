@@ -100,21 +100,29 @@ public class Connection {
     }
 
     CompletableFuture<Void> ping(NodeInfo origin, NodeInfo destination) throws IOException {
+        System.out.println("Putting with key" + destination.getId());
         CompletableFuture<Void> ping = Mailman.ongoingPings.putIfAbsent(destination.getId());
+
+        if(ping != null)
+            return ping;
+
+        ping = Mailman.ongoingPings.get(destination.getId());
 
         synchronized (objectOutputStream) {
             objectOutputStream.writeObject(new PingOperation(origin));
             objectOutputStream.flush();
         }
-        if(ping == null)
-            System.out.println("ping is null");
+
         return ping;
     }
 
-    void pong(NodeInfo origin) throws IOException {
+    void pong(NodeInfo origin, NodeInfo currentNode) throws IOException {
+
+        System.out.println("ponging node " + origin.getId());
         synchronized (objectOutputStream) {
-            objectOutputStream.writeObject(new PingResultOperation(origin));
+            objectOutputStream.writeObject(new PingResultOperation(currentNode));
             objectOutputStream.flush();
         }
+        System.out.println("ponged node " + origin.getId());
     }
 }

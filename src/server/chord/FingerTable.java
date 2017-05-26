@@ -269,6 +269,7 @@ public class FingerTable {
 
     void informSuccessorsOfFailure(NodeInfo node) {
         /* Inform my second successor that its predecessor failed. */
+        System.out.println(successors.size());
         if (successors.get(0).equals(node)) {
             try {
                 Mailman.sendOperation(successors.get(1), new NotifyOperation(self));
@@ -297,21 +298,11 @@ public class FingerTable {
      */
     private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
         /* Check if requested lookup is already being done */
-//        CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
-        if(ongoingLookups.get(key) != null)
-            return ongoingLookups.get(key);
-//
-//        if(lookupResult == null)
-//            System.out.println("null");
-//
-        //FIXME its working like this, should it stay like this??
-//        if (lookupResult != null)
-//            return lookupResult;
-//
-//        lookupResult = ongoingLookups.get(key);
-
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
+        if(lookupResult != null)
+            return lookupResult;
 
+        lookupResult = ongoingLookups.get(key);
         try {
             Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
         } catch (Exception e) {

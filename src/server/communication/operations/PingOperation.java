@@ -12,6 +12,7 @@ public class PingOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
+        System.out.println("Ping received");
         try {
             Mailman.sendPong(origin);
         } catch (Exception e) {
