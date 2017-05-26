@@ -51,7 +51,7 @@ public class Node {
         dht = new DistributedHashTable(this);
     }
 
-    private CompletableFuture<NodeInfo> requestSuccessorPredecessor(NodeInfo successor) throws IOException, ClassNotFoundException {
+    private CompletableFuture<NodeInfo> requestSuccessorPredecessor(NodeInfo successor) throws Exception {
         /* Check if the request is already being made */
 
         CompletableFuture<NodeInfo> requestResult = ongoingPredecessorLookup;
@@ -96,13 +96,16 @@ public class Node {
         CompletableFuture<Void> getPredecessor;
         try {
             getPredecessor = requestSuccessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
-        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("adfas");
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
 
         try {
+            System.out.println("adfas");
             getPredecessor.get();
+            System.out.println("adfas");
         } catch (CancellationException | ExecutionException | InterruptedException e) {
             return false;
         }
@@ -175,13 +178,13 @@ public class Node {
                                     self,
                                     new HashSet<>(Collections.list(entry.getValue().keys()))));
 
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    entry.getValue().forEach(this::insert);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     e.printStackTrace();
                     System.out.println("checkReplicasOwners:: error on get.");
                     attempts--;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    entry.getValue().forEach(this::insert);
                 }
             }
         }
@@ -219,7 +222,7 @@ public class Node {
 
             try {
                 Mailman.sendOperation(nthSuccessor, new ReplicationOperation(self, key, value));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 informAboutFailure(nthSuccessor);
                 i--;
             }
@@ -244,7 +247,7 @@ public class Node {
         return operation(ongoingInsertions, new InsertOperation(self, key, value), key);
     }
 
-    private CompletableFuture<Boolean> sendKeysToNode(NodeInfo destination, ConcurrentHashMap<BigInteger, byte[]> keys) throws IOException {
+    private CompletableFuture<Boolean> sendKeysToNode(NodeInfo destination, ConcurrentHashMap<BigInteger, byte[]> keys) throws Exception {
         int destinationId = destination.getId();
         CompletableFuture<Boolean> sending = ongoingKeySendings.putIfAbsent(destinationId);
 
@@ -262,7 +265,7 @@ public class Node {
             try {
                 sendKeysToNode(newPredecessor,
                         dht.getKeysBelongingTo(newPredecessor)).get(OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
-            } catch (IOException | InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (Exception e) {
                 informAboutFailure(newPredecessor);
                 return false;
             }
@@ -312,7 +315,7 @@ public class Node {
         for (Map.Entry<BigInteger, byte[]> entry : replicas.entrySet()) {
             try {
                 Mailman.sendOperation(node, new ReplicationOperation(self, entry.getKey(), entry.getValue()));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 informAboutFailure(node);
                 return;
             }
@@ -369,7 +372,7 @@ public class Node {
 
         try {
             Mailman.sendOperation(destination, operation);
-        } catch (IOException e) {
+        } catch (Exception e) {
             operationState.completeExceptionally(e);
             return operationState;
         }
@@ -384,11 +387,6 @@ public class Node {
     public boolean removeValue(BigInteger key) {
         //deleteReplication(key);
         return dht.deleteKey(key);
-    }
-
-    public void onPingResponse(NodeInfo node) {
-        BigInteger key = getSuccessorKey(node);
-        fingerTable.ongoingPings.operationFinished(key, node);
     }
 
     /**
@@ -412,7 +410,7 @@ public class Node {
 
         try {
             Mailman.sendOperation(origin, new ReplicationSyncResultOperation(origin, keysToDelete));
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return;
         }

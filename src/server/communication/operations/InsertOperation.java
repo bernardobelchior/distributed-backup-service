@@ -5,7 +5,6 @@ import server.chord.NodeInfo;
 import server.communication.Mailman;
 import server.communication.Operation;
 
-import java.io.IOException;
 import java.math.BigInteger;
 
 public class InsertOperation extends Operation {
@@ -24,7 +23,7 @@ public class InsertOperation extends Operation {
 
         try {
             Mailman.sendOperation(origin, result);
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

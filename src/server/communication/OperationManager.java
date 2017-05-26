@@ -14,8 +14,20 @@ public class OperationManager<T, U> {
         return ongoingOperation.putIfAbsent(key, new CompletableFuture<>());
     }
 
+    public CompletableFuture<U> put(T key) {
+        CompletableFuture<U> operation = new CompletableFuture<>();
+
+        ongoingOperation.put(key, operation);
+        return operation;
+    }
+
     public void operationFinished(T key, U value) {
-        ongoingOperation.remove(key).complete(value);
+        CompletableFuture<U> a = ongoingOperation.remove(key);
+
+        if(a == null)
+            System.out.println("I am null!!");
+
+        a.complete(value);
     }
 
     public void operationFailed(T key, Exception exception) {
