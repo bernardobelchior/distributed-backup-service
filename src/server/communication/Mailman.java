@@ -51,8 +51,17 @@ public class Mailman {
          * Otherwise, send to the correct node as expected. */
         if (destination.equals(currentNode.getInfo()))
             operation.run(currentNode);
-        else
-            getOrOpenConnection(destination).sendOperation(operation);
+        else {
+            int attempts = 3;
+            while (attempts > 0) {
+                try {
+                    getOrOpenConnection(destination).sendOperation(operation);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    attempts--;
+                }
+            }
+        }
     }
 
     public static void listenForConnections(int port) {

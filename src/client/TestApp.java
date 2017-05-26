@@ -34,10 +34,7 @@ public class TestApp {
                 pathName = args[2];
 
                 try {
-                    if (initiatorPeer.backup(pathName))
-                        System.out.println("File backup successful.");
-                    else
-                        System.out.println("File backup failed.");
+                    System.out.println(initiatorPeer.backup(pathName));
                 } catch (RemoteException ignored) {
                 } catch (IOException e) {
                     e.printStackTrace();

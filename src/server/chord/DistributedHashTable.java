@@ -14,7 +14,7 @@ import java.util.concurrent.*;
 import static server.utils.Utils.between;
 
 public class DistributedHashTable {
-    static final int OPERATION_TIMEOUT = 1; //In seconds
+    static final int OPERATION_TIMEOUT = 30; //In seconds
     public static final int MAXIMUM_HOPS = 8;
     private final Node node;
     private final ConcurrentHashMap<BigInteger, byte[]> localValues = new ConcurrentHashMap<>();

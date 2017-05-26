@@ -164,21 +164,25 @@ public class Node {
      */
     private void checkReplicasOwners() {
         for (Map.Entry<Integer, ConcurrentHashMap<BigInteger, byte[]>> entry : replicatedValues.entrySet()) {
-            try {
-                NodeInfo owner = fingerTable.lookup(BigInteger.valueOf(entry.getKey())).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+            int attempts = 3;
+            while (attempts > 0) {
+                try {
+                    NodeInfo owner = fingerTable.lookup(BigInteger.valueOf(entry.getKey())).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
 
-                Mailman.sendOperation(
-                        owner,
-                        new ReplicationSyncOperation(
-                                self,
-                                new HashSet<>(Collections.list(entry.getValue().keys()))));
+                    Mailman.sendOperation(
+                            owner,
+                            new ReplicationSyncOperation(
+                                    self,
+                                    new HashSet<>(Collections.list(entry.getValue().keys()))));
 
-            } catch (IOException e) {
-                e.printStackTrace();
-                entry.getValue().forEach(this::insert);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                System.out.println("checkReplicasOwners:: error on get.");
-                checkReplicasOwners();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    entry.getValue().forEach(this::insert);
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    e.printStackTrace();
+                    System.out.println("checkReplicasOwners:: error on get.");
+                    attempts--;
+                }
             }
         }
     }

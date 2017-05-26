@@ -25,36 +25,31 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     }
 
     @Override
-    public boolean backup(String pathName) throws IOException {
+    public String backup(String pathName) throws IOException {
         byte[] file;
         try {
             file = fileManager.loadFileFromDisk(pathName);
+        } catch (IOException e) {
+            return "Could not open file. Aborting backup...";
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Could not encrypt file. Aborting backup...");
-            return false;
+            return "Could not encrypt file. Aborting backup...";
         }
 
         BigInteger key;
         try {
             key = new BigInteger(Utils.hash(file));
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return false;
+            return "Could not create key for file backup. Aborting...";
         }
 
         try {
-            if (dht.insert(key, file)) {
-                System.out.println("File " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray()));
-                return true;
-            } else {
-                System.out.println("File " + pathName + " could not be inserted in the system.");
-                return false;
-            }
+            if (dht.insert(key, file))
+                return "File " + pathName + " stored with key " + DatatypeConverter.printHexBinary(key.toByteArray());
+            else
+                return "File " + pathName + " could not be inserted in the system.";
+
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            System.out.println("File " + pathName + " insertion timed out.");
-            e.printStackTrace();
-            return false;
+            return "Backup of file " + pathName + " timed out.";
         }
     }
 
