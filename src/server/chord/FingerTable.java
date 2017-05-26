@@ -12,7 +12,6 @@ import java.math.BigInteger;
 import java.util.concurrent.*;
 
 import static server.chord.Node.MAX_NODES;
-import static server.communication.Mailman.PING_TIMEOUT;
 import static server.utils.Utils.*;
 
 public class FingerTable {
@@ -303,7 +302,7 @@ public class FingerTable {
         try {
             Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
         } catch (Exception e) {
-            lookupResult.completeExceptionally(e);
+            ongoingLookups.operationFailed(key, e);
         }
 
         return lookupResult;
@@ -346,17 +345,6 @@ public class FingerTable {
         return true;
     }
 
-    private boolean pingSuccessor(NodeInfo node) {
-        try {
-            Mailman.sendPing(node).get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-
-        return true;
-    }
-
     /**
      * Get the node's successor's predecessor, check if it is not the current node
      * and notify the successor of this node's existence
@@ -364,10 +352,8 @@ public class FingerTable {
     private void stabilizeSuccessors() {
         lookup(getSuccessorKey(self));
 
-        for (int i = 1; i < successors.size(); i++) {
-            pingSuccessor(successors.get(i));
+        for (int i = 1; i < successors.size(); i++)
             lookup(getSuccessorKey(successors.get(i)));
-        }
 
         notifySuccessor();
     }

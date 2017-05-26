@@ -36,6 +36,8 @@ public class LookupOperation extends Operation {
 
         if (reachedDestination) {
             try {
+                System.out.println(currentNode.getInfo());
+                System.out.println(this.lastNode);
                 Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
                 currentNode.informAboutExistence(origin);
             } catch (Exception e) {

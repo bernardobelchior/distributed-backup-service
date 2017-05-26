@@ -12,12 +12,26 @@ public class LookupResultOperation extends Operation {
 
     public LookupResultOperation(NodeInfo origin, NodeInfo resultNode, BigInteger key) {
         super(origin);
+
+        if (resultNode == null)
+            try {
+                throw new Exception();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
         this.resultNode = resultNode;
         this.key = key;
     }
 
     @Override
     public void run(Node currentNode) {
+        if (resultNode == null)
+            try {
+                throw new Exception();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         currentNode.onLookupFinished(key, resultNode);
     }
 

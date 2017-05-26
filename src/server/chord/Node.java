@@ -18,7 +18,6 @@ import java.util.concurrent.*;
 
 import static server.chord.DistributedHashTable.OPERATION_TIMEOUT;
 import static server.chord.FingerTable.LOOKUP_TIMEOUT;
-import static server.utils.Utils.getSuccessorKey;
 
 public class Node {
     public static final int MAX_NODES = 128;
@@ -323,6 +322,7 @@ public class Node {
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
+        System.out.println("este sou eu: " + targetNode);
         fingerTable.ongoingLookups.operationFinished(key, targetNode);
         informAboutExistence(targetNode);
     }
@@ -366,14 +366,14 @@ public class Node {
             destination = fingerTable.lookup(key).get();
         } catch (InterruptedException | ExecutionException e) {
             fingerTable.ongoingLookups.operationFailed(key, new KeyNotFoundException());
-            operationState.completeExceptionally(e);
+            operationManager.operationFailed(key, e);
             return operationState;
         }
 
         try {
             Mailman.sendOperation(destination, operation);
         } catch (Exception e) {
-            operationState.completeExceptionally(e);
+            operationManager.operationFailed(key, e);
             return operationState;
         }
 

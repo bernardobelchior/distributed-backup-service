@@ -11,21 +11,23 @@ public class OperationManager<T, U> {
     }
 
     public CompletableFuture<U> putIfAbsent(T key) {
+        System.out.println("Put if absent: " + key);
         return ongoingOperation.putIfAbsent(key, new CompletableFuture<>());
     }
 
-    public CompletableFuture<U> put(T key) {
-        CompletableFuture<U> operation = new CompletableFuture<>();
-
-        ongoingOperation.put(key, operation);
-        return operation;
-    }
-
     public void operationFinished(T key, U value) {
+        System.out.println(ongoingOperation);
         CompletableFuture<U> a = ongoingOperation.remove(key);
+        System.out.println(ongoingOperation);
 
-        if(a == null)
-            System.out.println("I am null!!");
+        if (a == null) {
+            try {
+                throw new Exception();
+            } catch (Exception e) {
+                System.out.println(a);
+                e.printStackTrace();
+            }
+        }
 
         a.complete(value);
     }

@@ -3,15 +3,12 @@ package server.communication;
 
 import server.chord.Node;
 import server.chord.NodeInfo;
-import server.communication.operations.PingOperation;
-import server.communication.operations.PingResultOperation;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 
@@ -65,7 +62,7 @@ public class Connection {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-            //self.informAboutFailure(destination);
+            self.informAboutFailure(destination);
             closeConnection();
         }
     }
@@ -78,7 +75,7 @@ public class Connection {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
-                //self.informAboutFailure(destination);
+                self.informAboutFailure(destination);
                 closeConnection();
                 return;
             }
@@ -97,26 +94,5 @@ public class Connection {
 
     NodeInfo getNodeInfo() {
         return destination;
-    }
-
-    CompletableFuture<Void> ping(NodeInfo origin, NodeInfo destination) throws IOException {
-        CompletableFuture<Void> ping = Mailman.ongoingPings.put(destination.getId());
-
-        synchronized (objectOutputStream) {
-            objectOutputStream.writeObject(new PingOperation(origin));
-            objectOutputStream.flush();
-        }
-
-        if (ping == null)
-            System.out.println("ping is null");
-
-        return ping;
-    }
-
-    void pong(NodeInfo origin) throws IOException {
-        synchronized (objectOutputStream) {
-            objectOutputStream.writeObject(new PingResultOperation(origin));
-            objectOutputStream.flush();
-        }
     }
 }
