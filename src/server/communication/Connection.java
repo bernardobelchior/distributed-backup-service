@@ -46,6 +46,7 @@ public class Connection {
 
         try {
             synchronized (objectOutputStream) {
+                objectOutputStream.reset();
                 objectOutputStream.writeObject(operation);
                 objectOutputStream.flush();
             }
@@ -112,6 +113,7 @@ public class Connection {
 
         System.out.println("Pinging Node " + destination.getId());
         synchronized (objectOutputStream) {
+            objectOutputStream.reset();
             objectOutputStream.writeObject(new PingOperation(origin));
             objectOutputStream.flush();
         }

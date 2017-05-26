@@ -7,7 +7,10 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Mailman {
     private static final int MAX_SIMULTANEOUS_CONNECTIONS = 128;
@@ -42,7 +45,7 @@ public class Mailman {
     }
 
     public static void sendPong(NodeInfo destination) throws Exception {
-        getOrOpenConnection(destination).pong(currentNode,currentNode.getInfo());
+        getOrOpenConnection(destination).pong(currentNode, currentNode.getInfo());
     }
 
     public static CompletableFuture<Void> sendPing(NodeInfo destination) throws Exception {
@@ -54,12 +57,23 @@ public class Mailman {
          * Otherwise, send to the correct node as expected. */
         if (destination.equals(currentNode.getInfo())) {
             operation.run(currentNode);
-        }
-        else {
-            System.out.println("Sending ping to node " + destination.getId());
-            CompletableFuture pingFuture = sendPing(destination);
-            pingFuture.get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
-            getOrOpenConnection(destination).sendOperation(operation);
+        } else {
+            int attempts = 3;
+            while (attempts > 0) {
+                try {
+                    CompletableFuture pingFuture = sendPing(destination);
+                    //pingFuture.get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
+                    pingFuture.get();
+                    getOrOpenConnection(destination).sendOperation(operation);
+                } catch (Exception e) {
+                    openConnections.remove(destination);
+                    addOpenConnection(new Connection(destination));
+                    attempts--;
+                    if (attempts < 1)
+                        throw e;
+
+                }
+            }
         }
     }
 
