@@ -53,7 +53,7 @@ public class NodeInfo implements Serializable {
 
     @Override
     public String toString() {
-        return "ID: " + id + "\tIP Address: " + address.getHostAddress() + "\tPort: " + port;
+        return "ID: " + id + "  IP Address: " + address.getHostAddress() + "  Port: " + port;
     }
 
     @Override

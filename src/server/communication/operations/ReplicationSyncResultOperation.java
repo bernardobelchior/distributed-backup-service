@@ -17,6 +17,6 @@ public class ReplicationSyncResultOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        currentNode.deleteReplicas(origin, keysToDelete);
+        currentNode.updateReplicas(origin, keysToDelete);
     }
 }

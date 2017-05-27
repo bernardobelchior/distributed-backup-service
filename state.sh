@@ -5,6 +5,11 @@ exists()
 	command -v "$1" >/dev/null 2>&1
 }
 
+state() {
+	eval $terminal "\"java -classpath $classpath client.TestApp $1 STATE; read\" &"
+	sleep 0.1
+}
+
 launch_peer() {
 	eval $terminal "\"java -Djavax.net.ssl.keyStore=keystore.keys -Djavax.net.ssl.keyStorePassword=123456 -Djavax.net.ssl.trustStore=truststore.keys -Djavax.net.ssl.trustStorePassword=123456 -Dfile.encoding=UTF-8 -classpath $classpath server.Server $1 $2 $3 $4; bash\" &"
 	sleep 0.1
@@ -31,21 +36,21 @@ else
 fi
 
 compilePath=$(echo out/production/distributed-backup-system/)
-sh compile.sh $compilePath
+#sh compile.sh $compilePath
 
 classpath=$(realpath $compilePath)
 
-pushd .
-cd $classpath
-rmiregistry &
-popd
+#pushd .
+#cd $classpath
+#rmiregistry &
+#popd
 
-launch_peer "1" "1234"
-launch_peer "2" "1235" "193.136.33.112" "1234"
-launch_peer "3" "1236" "193.136.33.112" "1234"
-launch_peer "4" "1237" "193.136.33.112" "1235"
-launch_peer "5" "1238" "193.136.33.112" "1235"
-launch_peer "6" "1239" "193.136.33.112" "1235"
+state "1" 
+state "2" 
+state "3" 
+state "4" 
+state "5" 
+state "6" 
 
 trap "exit" INT TERM
 trap "kill 0" EXIT

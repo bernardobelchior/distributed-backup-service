@@ -21,6 +21,7 @@ import static server.chord.FingerTable.LOOKUP_TIMEOUT;
 
 public class Node {
     public static final int MAX_NODES = 128;
+    public static final int OPERATION_MAX_FAILED_ATTEMPTS = 3;
     private static final int REPLICATION_DEGREE = 3;
 
     private final NodeInfo self;
@@ -162,11 +163,11 @@ public class Node {
      */
     private void checkReplicasOwners() {
         for (Map.Entry<Integer, ConcurrentHashMap<BigInteger, byte[]>> entry : replicatedValues.entrySet()) {
-            int attempts = 3;
+            int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
             while (attempts > 0) {
+                NodeInfo owner;
                 try {
-                    System.out.println("looking for owner: " + entry.getKey());
-                    NodeInfo owner = fingerTable.lookup(BigInteger.valueOf(entry.getKey())).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+                    owner = fingerTable.lookup(BigInteger.valueOf(entry.getKey())).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
 
                     Mailman.sendOperation(
                             owner,
@@ -175,13 +176,15 @@ public class Node {
                                     new HashSet<>(Collections.list(entry.getValue().keys()))));
 
                     break;
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                    e.printStackTrace();
-                    System.out.println("Lookup for check replicas owners has failed.");
-                    attempts--;
                 } catch (Exception e) {
                     e.printStackTrace();
-                    entry.getValue().forEach(this::insert);
+                    System.out.println("Lookup for check replicas owners has failed. Target key: " + BigInteger.valueOf(entry.getKey()));
+                    attempts--;
+
+                    if (attempts <= 0) {
+                        entry.getValue().forEach(this::insert);
+                        break;
+                    }
                 }
             }
         }
@@ -275,9 +278,7 @@ public class Node {
     }
 
     public void informAboutExistence(NodeInfo node) {
-        fingerTable.updatePredecessor(node);
-        fingerTable.updateSuccessors(node);
-        fingerTable.updateFingerTable(node);
+        fingerTable.informAboutExistence(node);
     }
 
     public void informAboutFailure(NodeInfo node) {
@@ -320,6 +321,12 @@ public class Node {
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
+        if (key.intValue() == 31)
+            try {
+                throw new Exception();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         informAboutExistence(targetNode);
         fingerTable.ongoingLookups.operationFinished(key, targetNode);
     }
@@ -330,10 +337,10 @@ public class Node {
         sb.append(fingerTable.toString());
 
         sb.append("\n\nReplicated keys:\n");
-        sb.append("NodeID\t\tKey\n");
+        sb.append("NodeID    Key\n");
         replicatedValues.forEach((nodeId, keys) -> keys.forEach((key, value) -> {
             sb.append(nodeId);
-            sb.append("\t\t\t\t\t");
+            sb.append("          ");
             sb.append(DatatypeConverter.printHexBinary(key.toByteArray()));
             sb.append("\n");
         }));
@@ -358,20 +365,37 @@ public class Node {
 
         operationState = operationManager.get(key);
 
-        NodeInfo destination;
-        try {
-            destination = fingerTable.lookup(key).get();
-        } catch (InterruptedException | ExecutionException e) {
-            fingerTable.ongoingLookups.operationFailed(key, new KeyNotFoundException());
-            operationManager.operationFailed(key, e);
-            return operationState;
+        NodeInfo destination = null;
+        int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+        while (attempts > 0) {
+            try {
+                destination = fingerTable.lookup(key).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+                break;
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                attempts--;
+
+                if (attempts <= 0) {
+                    fingerTable.ongoingLookups.operationFailed(key, new KeyNotFoundException());
+                    operationManager.operationFailed(key, e);
+                    return operationState;
+                }
+            }
         }
 
-        try {
-            Mailman.sendOperation(destination, operation);
-        } catch (Exception e) {
-            operationManager.operationFailed(key, e);
-            return operationState;
+        attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+        while (attempts > 0) {
+            try {
+                Mailman.sendOperation(destination, operation);
+                break;
+            } catch (Exception e) {
+                attempts--;
+
+                if (attempts <= 0) {
+                    operationManager.operationFailed(key, e);
+                    return operationState;
+                }
+
+            }
         }
 
         return operationState;
@@ -382,7 +406,6 @@ public class Node {
     }
 
     public boolean removeValue(BigInteger key) {
-        //deleteReplication(key);
         return dht.deleteKey(key);
     }
 
@@ -406,7 +429,7 @@ public class Node {
         }
 
         try {
-            Mailman.sendOperation(origin, new ReplicationSyncResultOperation(origin, keysToDelete));
+            Mailman.sendOperation(origin, new ReplicationSyncResultOperation(self, keysToDelete));
         } catch (Exception e) {
             e.printStackTrace();
             return;
@@ -416,11 +439,22 @@ public class Node {
         replicateTo(toReplicate, origin);
     }
 
-    public void deleteReplicas(NodeInfo origin, HashSet<BigInteger> keysToDelete) {
+    public void updateReplicas(NodeInfo origin, HashSet<BigInteger> keysToDelete) {
         ConcurrentHashMap<BigInteger, byte[]> originReplicas = replicatedValues.get(origin.getId());
-        keysToDelete.forEach(originReplicas::remove);
 
-        if (originReplicas.size() == 0)
-            replicatedValues.remove(origin.getId());
+        if (originReplicas == null) {
+            System.out.println(origin);
+            System.out.println(replicatedValues);
+            try {
+                throw new Exception();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            keysToDelete.forEach(originReplicas::remove);
+
+            if (originReplicas.size() == 0)
+                replicatedValues.remove(origin.getId());
+        }
     }
 }

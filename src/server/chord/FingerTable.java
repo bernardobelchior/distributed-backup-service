@@ -17,7 +17,7 @@ import static server.utils.Utils.*;
 public class FingerTable {
     private static final int FINGER_TABLE_SIZE = (int) (Math.log(MAX_NODES) / Math.log(2));
     private static final int NUM_SUCCESSORS = 5;
-    public static final int LOOKUP_TIMEOUT = 500; // In milliseconds
+    static final int LOOKUP_TIMEOUT = 1000; // In milliseconds
 
     final OperationManager<BigInteger, NodeInfo> ongoingLookups = new OperationManager<>();
 
@@ -71,13 +71,13 @@ public class FingerTable {
                 : predecessor.getId());
         sb.append("\n\n");
         sb.append("Finger Table:\n");
-        sb.append("Index\tKey\t\tID\n");
+        sb.append("Index  Key    ID\n");
 
         for (int i = 0; i < fingers.length; i++) {
             sb.append(i);
-            sb.append("\t\t");
+            sb.append("      ");
             sb.append(Integer.remainderUnsigned((int) (self.getId() + Math.pow(2, i)), MAX_NODES));
-            sb.append("\t\t");
+            sb.append("     ");
             sb.append(fingers[i] == null
                     ? "null"
                     : fingers[i].getId());
@@ -85,11 +85,11 @@ public class FingerTable {
         }
 
         sb.append("\nSuccessors:\n");
-        sb.append("Index\t\tID\n");
+        sb.append("Index      ID\n");
 
         for (int i = 0; i < successors.size(); i++) {
             sb.append(i);
-            sb.append("\t\t\t");
+            sb.append("      ");
             sb.append(successors.get(i) == null
                     ? "null"
                     : successors.get(i).getId());
@@ -117,25 +117,14 @@ public class FingerTable {
     private void getFinger(int index) {
         BigInteger keyToLookup = BigInteger.valueOf(getFingerKey(self, index));
 
-        /* Check if the finger belongs to the successors. If it does, then we don't need to look it up. */
-        /* int lower = addToNodeId(self.getId(), -1);
-        FIXME: Useful optimization, but has a problem when the current node ID stands between successors
-        for (int i = 0; i < successors.size(); i++) {
-            if (between(lower, successors.get(i).getId(), keyToLookup)) {
-                setFinger(index, successors.get(i));
-                return true;
-            }
-        }*/
-
         try {
             CompletableFuture<Void> fingerLookup = lookup(keyToLookup)
-                    .thenAcceptAsync((node) -> setFinger(index, node), lookupThreadPool);
+                    .thenAcceptAsync(this::informAboutExistence, lookupThreadPool);
 
             fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | InterruptedException | ExecutionException e) {
             ongoingLookups.operationFailed(keyToLookup, new KeyNotFoundException());
         }
-
     }
 
     /**
@@ -143,7 +132,7 @@ public class FingerTable {
      *
      * @param node node being compared
      */
-    void updateFingerTable(NodeInfo node) {
+    private void updateFingerTable(NodeInfo node) {
         BigInteger keyEquivalent = BigInteger.valueOf(node.getId());
 
         for (int i = 0; i < fingers.length; i++) {
@@ -152,6 +141,12 @@ public class FingerTable {
                 setFinger(i, node);
 
         }
+    }
+
+    void informAboutExistence(NodeInfo node) {
+        updatePredecessor(node);
+        updateSuccessors(node);
+        updateFingerTable(node);
     }
 
     /**
@@ -209,21 +204,37 @@ public class FingerTable {
         return false;
     }
 
-    void updateSuccessors(NodeInfo node) {
+    private void updateSuccessors(NodeInfo node) {
         if (node.equals(self))
             return;
 
-        NodeInfo lowerNode = self;
-
-        /*
-         * Find, if any, the first successor that should be after the node being checked
+        /* Find, if any, the first successor that should be after the node being checked
          * Shift all the nodes in the array a position forwards and
-         * Insert the node in the correct position
-         */
+         * Insert the node in the correct position */
         synchronized (successors) {
-            for (int i = 0; i < successors.size(); i++) {
-                NodeInfo successor = successors.get(i);
-                int nodeKey = node.getId();
+            NodeInfo successor;
+            int nodeKey;
+            if (successors.size() > 0) {
+                successor = successors.get(0);
+                nodeKey = node.getId();
+
+                /* If the node is already in the successor list, then do nothing */
+                if (node.equals(successor))
+                    return;
+
+                /* If the node belongs between two successors, then add it to that position */
+                if (between(self, successor, nodeKey)) {
+                    successors.add(0, node);
+                /* Send a lookup to successor. This will notify that I am his new predecessor. */
+                    lookupFrom(BigInteger.valueOf(successor.getId()), successor);
+                    return;
+                }
+            }
+
+            for (int i = 1; i < successors.size(); i++) {
+                NodeInfo lowerNode = successors.get(i - 1);
+                successor = successors.get(i);
+                nodeKey = node.getId();
 
                 /* If the node is already in the successor list, then do nothing */
                 if (node.equals(successor))
@@ -234,8 +245,6 @@ public class FingerTable {
                     successors.add(i, node);
                     return;
                 }
-
-                lowerNode = successor;
             }
         }
 
@@ -260,7 +269,6 @@ public class FingerTable {
 
     void informSuccessorsOfFailure(NodeInfo node) {
         /* Inform my second successor that its predecessor failed. */
-        System.out.println(successors.size());
         if (successors.get(0).equals(node)) {
             try {
                 Mailman.sendOperation(successors.get(1), new NotifyOperation(self));
@@ -271,7 +279,6 @@ public class FingerTable {
 
         System.err.println("Node with ID " + node.getId() + " failed!");
         if (successors.remove(node)) {
-            System.err.println("removed");
             if (successors.isEmpty())
                 lookup(BigInteger.valueOf(addToNodeId(self.getId(), 1)));
             else
@@ -372,7 +379,7 @@ public class FingerTable {
         fill();
     }
 
-    public SynchronizedFixedLinkedList<NodeInfo> getSuccessors() {
+    SynchronizedFixedLinkedList<NodeInfo> getSuccessors() {
         return successors;
     }
 }

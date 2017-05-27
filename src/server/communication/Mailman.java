@@ -62,7 +62,6 @@ public class Mailman {
         }
     }
 
-
     public static void listenForConnections(int port) {
         SSLServerSocket serverSocket;
         try {

@@ -47,7 +47,6 @@ public class LookupOperation extends Operation {
 
             return;
         }
-        currentNode.informAboutExistence(origin);
 
         if (currentNode.keyBelongsToSuccessor(key))
             reachedDestination = true;
@@ -64,6 +63,7 @@ public class LookupOperation extends Operation {
             e.printStackTrace();
             currentNode.informAboutFailure(nextBestNode);
         } finally {
+            currentNode.informAboutExistence(origin);
             currentNode.informAboutExistence(lastNode);
         }
     }

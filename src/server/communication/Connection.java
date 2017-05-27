@@ -61,7 +61,6 @@ public class Connection {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-            self.informAboutFailure(destination);
             closeConnection();
         }
     }
@@ -74,7 +73,6 @@ public class Connection {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
-                self.informAboutFailure(destination);
                 closeConnection();
                 return;
             }
