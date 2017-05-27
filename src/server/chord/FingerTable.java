@@ -365,7 +365,7 @@ public class FingerTable {
      */
     private void stabilizeSuccessors() {
         for (int i = 0; i < successors.size(); i++)
-            pingSuccessor(successors.get(i));
+//            pingSuccessor(successors.get(i));
 
         notifySuccessor();
     }

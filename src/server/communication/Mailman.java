@@ -56,9 +56,9 @@ public class Mailman {
             operation.run(currentNode);
         }
         else {
-            System.out.println("Sending ping to node " + destination.getId());
-            CompletableFuture pingFuture = sendPing(destination);
-            pingFuture.get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
+//            System.out.println("Sending ping to node " + destination.getId());
+//            CompletableFuture pingFuture = sendPing(destination);
+//            pingFuture.get(PING_TIMEOUT, TimeUnit.MILLISECONDS);
             getOrOpenConnection(destination).sendOperation(operation);
         }
     }
