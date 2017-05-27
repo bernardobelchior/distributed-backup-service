@@ -69,11 +69,7 @@ public class FileManager {
         fileOutputStream.close();
     }
 
-    public byte[] loadFileFromDisk(String path) throws BadPaddingException, NoSuchAlgorithmException, IOException, IllegalBlockSizeException, NoSuchPaddingException, InvalidKeyException, ClassNotFoundException {
-        return Encryption.encrypt(loadFile(path));
-    }
-
-    private byte[] loadFile(String path) throws IOException {
+    public byte[] loadFile(String path) throws IOException {
         FileInputStream fileInputStream = new FileInputStream(path);
 
         byte[] content = new byte[fileInputStream.available()];

@@ -3,13 +3,17 @@ package server;
 import common.IInitiatorPeer;
 import server.chord.DistributedHashTable;
 import server.exceptions.DecryptionFailedException;
+import server.utils.Encryption;
 import server.utils.Utils;
 
 import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -28,11 +32,9 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
     public String backup(String pathName) throws IOException {
         byte[] file;
         try {
-            file = fileManager.loadFileFromDisk(pathName);
+            file = fileManager.loadFile(pathName);
         } catch (IOException e) {
             return "Could not open file. Aborting backup...";
-        } catch (Exception e) {
-            return "Could not encrypt file. Aborting backup...";
         }
 
         BigInteger key;
@@ -40,6 +42,12 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
             key = new BigInteger(Utils.hash(file));
         } catch (NoSuchAlgorithmException e) {
             return "Could not create key for file backup. Aborting...";
+        }
+
+        try {
+            file = Encryption.encrypt(file);
+        } catch (InvalidKeyException | NoSuchPaddingException | BadPaddingException | NoSuchAlgorithmException | IllegalBlockSizeException e) {
+            return "Could not encrypt file. Aborting backup...";
         }
 
         try {
