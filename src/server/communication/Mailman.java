@@ -16,7 +16,6 @@ public class Mailman {
 
     private static final ConcurrentHashMap<NodeInfo, Connection> openConnections = new ConcurrentHashMap<>();
     private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
-
     private static Node currentNode;
 
     public static void init(Node currentNode, int port) {
@@ -51,13 +50,13 @@ public class Mailman {
             while (attempts > 0) {
                 try {
                     getOrOpenConnection(destination).sendOperation(operation);
+                    break;
                 } catch (Exception e) {
                     openConnections.remove(destination);
                     addOpenConnection(new Connection(destination));
                     attempts--;
                     if (attempts < 1)
                         throw e;
-
                 }
             }
         }

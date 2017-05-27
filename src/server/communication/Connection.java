@@ -54,7 +54,6 @@ public class Connection {
         try {
             Operation operation;
             operation = ((Operation) objectInputStream.readObject());
-
             this.destination = operation.getOrigin();
             Mailman.addOpenConnection(this);
             operation.run(self);

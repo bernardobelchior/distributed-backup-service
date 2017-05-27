@@ -17,11 +17,13 @@ if [ "$os" = "Linux" ]; then ##Figure out how to know terminal name
 		terminal=$(echo urxvt)
 	elif  exists x-terminal-emulator ; then
 		terminal=$(echo x-terminal-emulator)
+	elif  exists gnome-terminal ; then
+		terminal=$(echo gnome-terminal)
 	else
 		exit 1
 	fi
 
-	terminal=$(echo $terminal -e bash -c)
+	terminal=$(echo $terminal -e $BASH -c)
 elif [ "$os" = "Darwin" ]; then
 	terminal=$(echo open -a Terminal.app)
 else

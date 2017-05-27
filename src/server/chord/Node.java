@@ -78,7 +78,6 @@ public class Node {
      * @param bootstrapperNode Node that will provide the information with which our finger table will be updated.
      */
     public boolean bootstrap(NodeInfo bootstrapperNode) {
-
         /* Get the node's successors */
         if (!fingerTable.findSuccessors(bootstrapperNode))
             return false;
@@ -95,16 +94,13 @@ public class Node {
         CompletableFuture<Void> getPredecessor;
         try {
             getPredecessor = requestSuccessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
-            System.out.println("adfas");
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
 
         try {
-            System.out.println("adfas");
             getPredecessor.get();
-            System.out.println("adfas");
         } catch (CancellationException | ExecutionException | InterruptedException e) {
             return false;
         }
@@ -265,6 +261,7 @@ public class Node {
                 sendKeysToNode(newPredecessor,
                         dht.getKeysBelongingTo(newPredecessor)).get(OPERATION_TIMEOUT, TimeUnit.MILLISECONDS);
             } catch (Exception e) {
+                e.printStackTrace();
                 informAboutFailure(newPredecessor);
                 return false;
             }
@@ -290,7 +287,6 @@ public class Node {
             }
             return;
         }
-
         System.err.println("Node with ID " + node.getId() + " has failed.");
         Mailman.state();
         NodeInfo predecessor = fingerTable.getPredecessor();
@@ -322,9 +318,8 @@ public class Node {
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
-        System.out.println("este sou eu: " + targetNode);
-        fingerTable.ongoingLookups.operationFinished(key, targetNode);
         informAboutExistence(targetNode);
+        fingerTable.ongoingLookups.operationFinished(key, targetNode);
     }
 
     @Override

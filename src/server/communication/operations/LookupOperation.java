@@ -36,11 +36,10 @@ public class LookupOperation extends Operation {
 
         if (reachedDestination) {
             try {
-                System.out.println(currentNode.getInfo());
-                System.out.println(this.lastNode);
-                Mailman.sendOperation(origin, new LookupResultOperation(origin, currentNode.getInfo(), key));
+                Mailman.sendOperation(origin, new LookupResultOperation(currentNode.getInfo(), key));
                 currentNode.informAboutExistence(origin);
             } catch (Exception e) {
+                System.out.format("Failure of node with ID %d\n", origin.getId());
                 currentNode.informAboutFailure(origin);
             } finally {
                 currentNode.informAboutExistence(lastNode);
@@ -48,6 +47,7 @@ public class LookupOperation extends Operation {
 
             return;
         }
+        currentNode.informAboutExistence(origin);
 
         if (currentNode.keyBelongsToSuccessor(key))
             reachedDestination = true;
@@ -59,9 +59,9 @@ public class LookupOperation extends Operation {
 
         try {
             Mailman.sendOperation(nextBestNode, this);
-            currentNode.informAboutExistence(origin);
         } catch (Exception e) {
             System.out.format("Failure of node with ID %d\n", nextBestNode.getId());
+            e.printStackTrace();
             currentNode.informAboutFailure(nextBestNode);
         } finally {
             currentNode.informAboutExistence(lastNode);
