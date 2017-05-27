@@ -297,12 +297,13 @@ public class FingerTable {
      * @throws IOException
      */
     private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
-        /* Check if requested lookup is already being done */
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
-        if(lookupResult != null)
+
+        if (lookupResult != null)
             return lookupResult;
 
         lookupResult = ongoingLookups.get(key);
+
         try {
             Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
         } catch (Exception e) {
@@ -359,6 +360,7 @@ public class FingerTable {
 
         return true;
     }
+
     /**
      * Get the node's successor's predecessor, check if it is not the current node
      * and notify the successor of this node's existence

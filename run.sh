@@ -40,12 +40,12 @@ cd $classpath
 rmiregistry &
 popd
 
-launch_peer "1" "1234"
+#launch_peer "1" "1234"
 launch_peer "2" "1235" "193.136.33.112" "1234"
 launch_peer "3" "1236" "193.136.33.112" "1234"
-launch_peer "4" "1237" "193.136.33.112" "1235"
-launch_peer "5" "1238" "193.136.33.112" "1235"
-launch_peer "6" "1239" "193.136.33.112" "1235"
+#launch_peer "4" "1237" "193.136.33.112" "1235"
+#launch_peer "5" "1238" "193.136.33.112" "1235"
+#launch_peer "6" "1239" "193.136.33.112" "1235"
 
 trap "exit" INT TERM
 trap "kill 0" EXIT

@@ -7,7 +7,10 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Mailman {
     private static final int MAX_SIMULTANEOUS_CONNECTIONS = 128;
@@ -42,7 +45,7 @@ public class Mailman {
     }
 
     public static void sendPong(NodeInfo destination) throws Exception {
-        getOrOpenConnection(destination).pong(currentNode,currentNode.getInfo());
+        getOrOpenConnection(destination).pong(currentNode, currentNode.getInfo());
     }
 
     public static CompletableFuture<Void> sendPing(NodeInfo destination) throws Exception {
