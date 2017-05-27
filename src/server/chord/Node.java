@@ -165,6 +165,7 @@ public class Node {
             int attempts = 3;
             while (attempts > 0) {
                 try {
+                    System.out.println("looking for owner: " + entry.getKey());
                     NodeInfo owner = fingerTable.lookup(BigInteger.valueOf(entry.getKey())).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
 
                     Mailman.sendOperation(
@@ -173,9 +174,10 @@ public class Node {
                                     self,
                                     new HashSet<>(Collections.list(entry.getValue().keys()))));
 
+                    break;
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     e.printStackTrace();
-                    System.out.println("checkReplicasOwners:: error on get.");
+                    System.out.println("Lookup for check replicas owners has failed.");
                     attempts--;
                 } catch (Exception e) {
                     e.printStackTrace();
