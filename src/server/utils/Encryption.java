@@ -16,7 +16,7 @@ public class Encryption {
 
     private static SecretKey secretKey;
 
-    public static void initializeKeys(String keyDir) throws NoSuchAlgorithmException, IOException {
+    public static void initializeKey(String keyDir) throws NoSuchAlgorithmException, IOException {
         File keyFile = new File(keyDir + KEY_FILENAME);
 
         try {

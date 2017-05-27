@@ -26,7 +26,7 @@ public class FileManager {
     public FileManager(int nodeId) throws IOException, NoSuchAlgorithmException {
         BASE_DIR = String.valueOf(nodeId) + "/";
         createDirectories();
-        Encryption.initializeKeys(getKeysDir());
+        Encryption.initializeKey(getKeysDir());
     }
 
     private void createDirectories() {
