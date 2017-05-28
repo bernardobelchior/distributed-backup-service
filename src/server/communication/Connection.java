@@ -34,14 +34,24 @@ public class Connection {
         objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
         objectInputStream = new ObjectInputStream(socket.getInputStream());
         waitForAuthentication(currentNode);
-        //FIXME:: Is this needed?
-        //connectionsThreadPool.submit(() -> waitForAuthentication(currentNode));
+
     }
 
+    /**
+     * Checks if the socket is open.
+     *
+     * @return
+     */
     boolean isOpen() {
         return !socket.isClosed();
     }
 
+    /**
+     * Sends the given operation.
+     *
+     * @param operation
+     * @throws IOException
+     */
     public void sendOperation(Operation operation) throws IOException {
         try {
             synchronized (objectOutputStream) {
@@ -55,6 +65,11 @@ public class Connection {
         }
     }
 
+    /**
+     * Waits for confirmation that the node is authentic.
+     *
+     * @param self
+     */
     private void waitForAuthentication(Node self) {
         try {
             Operation operation;
@@ -70,6 +85,12 @@ public class Connection {
         }
     }
 
+    /**
+     *
+     * Listen to other nodes.
+     *
+     * @param self
+     */
     void listen(Node self) {
         while (true) {
             try {
@@ -82,6 +103,10 @@ public class Connection {
         }
     }
 
+    /**
+     * Close Connection of the socket.
+     *
+     */
     void closeConnection() {
         if (destination != null)
             Mailman.connectionClosed(destination);

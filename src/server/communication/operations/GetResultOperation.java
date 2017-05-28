@@ -16,6 +16,11 @@ public class GetResultOperation extends Operation {
         this.value = value;
     }
 
+    /**
+     *This Operation finishes the Get Operation and removes it from the operation manager.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.ongoingGets.operationFinished(key, value);

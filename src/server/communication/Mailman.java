@@ -20,15 +20,34 @@ public class Mailman {
     private static final ExecutorService connectionsThreadPool = Executors.newFixedThreadPool(MAX_SIMULTANEOUS_CONNECTIONS);
     private static Node currentNode;
 
+    /**
+     * Initiates the listening for Connections.
+     *
+     * @param currentNode
+     * @param port
+     */
     public static void init(Node currentNode, int port) {
         Mailman.currentNode = currentNode;
         new Thread(() -> listenForConnections(port)).start();
     }
 
+    /**
+     * Checks if the Connection is open.
+     *
+     * @param nodeInfo
+     * @return
+     */
     private static boolean isConnectionOpen(NodeInfo nodeInfo) {
         return openConnections.containsKey(nodeInfo) && openConnections.get(nodeInfo).isOpen();
     }
 
+    /**
+     * Opens connection to give node.
+     *
+     * @param nodeInfo
+     * @return
+     * @throws IOException
+     */
     private static Connection getOrOpenConnection(NodeInfo nodeInfo) throws IOException {
         if (nodeInfo.equals(currentNode.getInfo()))
             try {
@@ -42,6 +61,13 @@ public class Mailman {
                 : addOpenConnection(new Connection(nodeInfo));
     }
 
+    /**
+     * Sends the given Operation to the given destination.
+     *
+     * @param destination
+     * @param operation
+     * @throws IOException
+     */
     public static void sendOperation(NodeInfo destination, Operation operation) throws IOException {
         /* If we want to send the operation to the current node, it is equivalent to just running it.
          * Otherwise, send to the correct node as expected. */
@@ -65,6 +91,12 @@ public class Mailman {
         }
     }
 
+
+    /**
+     * Listening for connetions on the given port.
+     *
+     * @param port
+     */
     private static void listenForConnections(int port) {
         SSLServerSocket serverSocket;
         try {
@@ -88,6 +120,13 @@ public class Mailman {
         }
     }
 
+    /**
+     * Add the given Operation to the Open Connections Hash Map.
+     *
+     * @param connection
+     * @return
+     * @throws IOException
+     */
     static Connection addOpenConnection(Connection connection) throws IOException {
         Connection previousConnection = openConnections.put(connection.getNodeInfo(), connection);
         if (previousConnection != null)
@@ -97,10 +136,18 @@ public class Mailman {
         return connection;
     }
 
+    /**
+     * Remove the given Operation from the Open Connections Hash Map.
+     *
+     * @param connection
+     */
     static void connectionClosed(NodeInfo connection) {
         openConnections.remove(connection);
     }
 
+    /**
+     * Gets the state of the Open Connections Hash Map.
+     */
     public static void state() {
         System.out.println(openConnections.toString());
     }

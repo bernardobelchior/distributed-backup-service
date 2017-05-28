@@ -17,6 +17,11 @@ public class InsertOperation extends Operation {
         this.value = value;
     }
 
+    /**
+     * This Operation inserts in the given current Node the value and the key.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         InsertResultOperation result = new InsertResultOperation(currentNode.getInfo(), key, currentNode.storeKey(key, value));

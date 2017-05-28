@@ -21,6 +21,14 @@ public class NodeInfo implements Serializable {
         this.id = generateId(address.getAddress(), port);
     }
 
+    /**
+     * Generates the ID to the node.
+     *
+     * @param address
+     * @param port
+     * @return
+     * @throws NoSuchAlgorithmException
+     */
     private static int generateId(byte[] address, int port) throws NoSuchAlgorithmException {
         byte[] idGenerator = Arrays.copyOf(address, address.length + 4);
 
@@ -34,14 +42,29 @@ public class NodeInfo implements Serializable {
         return Integer.remainderUnsigned(id.intValue(), MAX_NODES);
     }
 
+    /**
+     * Gets the node ID.
+     *
+     * @return
+     */
     public int getId() {
         return id;
     }
 
+    /**
+     * Returns the node Address.
+     *
+     * @return
+     */
     public InetAddress getAddress() {
         return address;
     }
 
+    /**
+     * Gets the node Port.
+     *
+     * @return
+     */
     public int getPort() {
         return port;
     }

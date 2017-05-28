@@ -16,6 +16,11 @@ public class ReplicationOperation extends Operation {
         this.value = value;
     }
 
+    /**
+     * This Operation stores the replicas with the value with the key in the current node.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.storeReplica(origin, key, value);

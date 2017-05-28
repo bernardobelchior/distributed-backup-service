@@ -16,6 +16,10 @@ public class LookupResultOperation extends Operation {
         this.key = key;
     }
 
+    /**
+     * This Operation finishes the Lookup Operation and removes it from the operation manager.
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         System.out.println("Result of key " + Integer.remainderUnsigned(key.intValue(), MAX_NODES) + " resolved as " + origin.getId());

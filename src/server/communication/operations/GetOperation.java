@@ -16,6 +16,11 @@ public class GetOperation extends Operation {
         this.key = key;
     }
 
+    /**
+     * This Operation gets from the given current Node the value with the key.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         GetResultOperation result = new GetResultOperation(origin, key, currentNode.getLocalValue(key));

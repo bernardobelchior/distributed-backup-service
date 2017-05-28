@@ -16,6 +16,11 @@ public class InsertResultOperation extends Operation {
         this.successful = successful;
     }
 
+    /**
+     * This Operation finishes the Insert Operation and removes it from the operation manager.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.ongoingInsertions.operationFinished(key, successful);

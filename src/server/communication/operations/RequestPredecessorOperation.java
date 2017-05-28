@@ -11,6 +11,12 @@ public class RequestPredecessorOperation extends Operation {
         super(origin);
     }
 
+    /**
+     *
+     * This Operation gives the Predecessor from the current node.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         NodeInfo predecessor = currentNode.getPredecessor();

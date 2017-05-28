@@ -16,6 +16,11 @@ public class ReplicationSyncOperation extends Operation {
         this.keys = keys;
     }
 
+    /**
+     * This Operation synchronizes the replicas between the given current and the origin node.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.synchronizeReplicas(origin, keys);

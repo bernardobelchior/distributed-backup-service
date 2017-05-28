@@ -51,6 +51,13 @@ public class Node {
         dht = new DistributedHashTable(this);
     }
 
+    /**
+     * Requests to the given successor their predecessor.
+     *
+     * @param successor
+     * @return
+     * @throws IOException
+     */
     private CompletableFuture<NodeInfo> requestSuccessorPredecessor(NodeInfo successor) throws IOException {
         /* Check if the request is already being made */
 
@@ -71,10 +78,20 @@ public class Node {
         return requestResult;
     }
 
+    /**
+     * Gets the Node Info.
+     * @return
+     */
     public NodeInfo getInfo() {
         return self;
     }
 
+    /**
+     * Checks if the given key belongs to their successor.
+     *
+     * @param key
+     * @return
+     */
     public boolean keyBelongsToSuccessor(BigInteger key) {
         return fingerTable.keyBelongsToSuccessor(key);
     }
@@ -140,6 +157,11 @@ public class Node {
         return fingerTable.getPredecessor();
     }
 
+    /**
+     *Finish the Predecessor Request.
+     *
+     * @param predecessor
+     */
     public void finishPredecessorRequest(NodeInfo predecessor) {
         fingerTable.updatePredecessor(predecessor);
 
@@ -149,11 +171,17 @@ public class Node {
         ongoingPredecessorLookup = null;
     }
 
+    /**
+     * Initiates the Stabilization Protocol.
+     */
     public void initiateStabilization() {
         stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
 
     }
 
+    /**
+     * Starts the stabilization Protocol.
+     */
     private void stabilizationProtocol() {
         fingerTable.stabilizationProtocol();
         updateOwnKeysReplication();
@@ -213,12 +241,25 @@ public class Node {
         }
     }
 
+    /**
+     * Stores the key and the value.
+     *
+     * @param key
+     * @param value
+     * @return
+     */
     public boolean storeKey(BigInteger key, byte[] value) {
         boolean result = dht.storeKey(key, value);
         ensureReplication(key, value);
         return result;
     }
 
+    /**
+     * It ensures that all the Replication of the given key and the value are done.
+     *
+     * @param key
+     * @param value
+     */
     private void ensureReplication(BigInteger key, byte[] value) {
         NodeInfo nthSuccessor;
         for (int i = unfinishedReplications.getOrDefault(key, 1); i < REPLICATION_DEGREE; i++) {
@@ -250,24 +291,57 @@ public class Node {
         }
     }
 
+    /**
+     * Stores a replica.
+     *
+     * @param node
+     * @param key
+     * @param value
+     */
     public void storeReplica(NodeInfo node, BigInteger key, byte[] value) {
         ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.getOrDefault(node.getId(), new ConcurrentHashMap<>());
         replicas.put(key, value);
         replicatedValues.putIfAbsent(node.getId(), replicas);
     }
 
+    /**
+     * Gets the value stored locally with given key.
+     *
+     * @param key
+     * @return
+     */
     public byte[] getLocalValue(BigInteger key) {
         return dht.getLocalValue(key);
     }
 
+    /**
+     * Gets the Distributed Hash Table.
+     *
+     * @return
+     */
     public DistributedHashTable getDistributedHashTable() {
         return dht;
     }
 
+    /**
+     *Starts the insert Operation with the given key and value.
+     *
+     * @param key
+     * @param value
+     * @return
+     */
     CompletableFuture<Boolean> insert(BigInteger key, byte[] value) {
         return operation(ongoingInsertions, new InsertOperation(self, key, value), key);
     }
 
+    /**
+     * Sends the given keys to the given destination.
+     *
+     * @param destination
+     * @param keys
+     * @return
+     * @throws Exception
+     */
     private CompletableFuture<Boolean> sendKeysToNode(NodeInfo destination, ConcurrentHashMap<BigInteger, byte[]> keys) throws Exception {
         System.out.println("Sending keys to " + destination.getId());
         int destinationId = destination.getId();
@@ -281,6 +355,12 @@ public class Node {
         return ongoingKeySendings.get(destinationId);
     }
 
+    /**
+     * Updates Data Structures of the given new predecessor.
+     *
+     * @param newPredecessor
+     * @return
+     */
     public boolean updatePredecessor(NodeInfo newPredecessor) {
         if (fingerTable.updatePredecessor(newPredecessor)) {
 
@@ -299,10 +379,20 @@ public class Node {
         }
     }
 
+    /**
+     * Informs all the nodes about the existence of the given node.
+     *
+     * @param node
+     */
     public void informAboutExistence(NodeInfo node) {
         fingerTable.informAboutExistence(node);
     }
 
+    /**
+     * Informs all the nodes about the failure of the given node.
+     *
+     * @param node
+     */
     public void informAboutFailure(NodeInfo node) {
         if (node.equals(self)) {
             try {
@@ -338,6 +428,12 @@ public class Node {
         }
     }
 
+    /**
+     * Send all the given replicas to given node.
+     *
+     * @param replicas
+     * @param node
+     */
     private void replicateTo(ConcurrentHashMap<BigInteger, byte[]> replicas, NodeInfo node) {
         for (Map.Entry<BigInteger, byte[]> entry : replicas.entrySet()) {
             try {
@@ -349,6 +445,12 @@ public class Node {
         }
     }
 
+    /**
+     * Finishes the onLookup of the given target node.
+     *
+     * @param key
+     * @param targetNode
+     */
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
         informAboutExistence(targetNode);
         fingerTable.ongoingLookups.operationFinished(key, targetNode);
@@ -371,14 +473,34 @@ public class Node {
         return sb.toString();
     }
 
+    /**
+     * Stores the given keys of the successor.
+     *
+     * @param keys
+     */
     public void storeSuccessorKeys(ConcurrentHashMap<BigInteger, byte[]> keys) {
         dht.storeKeys(keys);
     }
 
+    /**
+     *
+     * Starts the Get Operation with the given key.
+     * @param key
+     * @return
+     */
     CompletableFuture<byte[]> get(BigInteger key) {
         return operation(ongoingGets, new GetOperation(self, key), key);
     }
 
+    /**
+     * Generalizes all the operations (insert, get and delete).
+     *
+     * @param operationManager
+     * @param operation
+     * @param key
+     * @param <R>
+     * @return
+     */
     private <R> CompletableFuture<R> operation(OperationManager<BigInteger, R> operationManager, Operation
             operation, BigInteger key) {
         CompletableFuture<R> operationState = operationManager.putIfAbsent(key);
@@ -424,10 +546,22 @@ public class Node {
         return operationState;
     }
 
+    /**
+     * Starts the Delete Operation woth the given key.
+     *
+     * @param key
+     * @return
+     */
     CompletableFuture<Boolean> delete(BigInteger key) {
         return operation(ongoingDeletes, new DeleteOperation(self, key), key);
     }
 
+    /**
+     * Removes from all Data structures of the node the value with the given key.
+     *
+     * @param key
+     * @return
+     */
     public boolean removeValue(BigInteger key) {
         return dht.deleteKey(key);
     }
@@ -471,6 +605,13 @@ public class Node {
         replicateTo(toReplicate, origin);
     }
 
+    /**
+     * Updates the Data structures of the replicated Values of the given node,
+     * deleting the given keys.
+     *
+     * @param origin
+     * @param keysToDelete
+     */
     public void updateReplicas(NodeInfo origin, HashSet<BigInteger> keysToDelete) {
         System.out.println("Received update replicas.");
         ConcurrentHashMap<BigInteger, byte[]> originReplicas = replicatedValues.get(origin.getId());

@@ -16,6 +16,11 @@ public class SendKeysOperation extends Operation {
         this.keys = keys;
     }
 
+    /**
+     * This Operation stores in the current node the successor keys.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.storeSuccessorKeys(keys);

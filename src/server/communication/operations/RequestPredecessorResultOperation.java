@@ -14,6 +14,11 @@ public class RequestPredecessorResultOperation extends Operation {
         this.predecessor = predecessor;
     }
 
+    /**
+     * This Operation finishes the Request Predecessor Operation and removes it from the operation manager.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.finishPredecessorRequest(predecessor);
