@@ -18,7 +18,6 @@ public class ReplicationSyncOperation extends Operation {
 
     @Override
     public void run(Node currentNode) {
-        System.out.println("I'm being run!! My origin is " + origin.getId());
         currentNode.synchronizeReplicas(origin, keys);
     }
 }

@@ -165,7 +165,7 @@ public class Node {
      * If it is not alive, then insert all of its keys in the network.
      */
     private void checkReplicasOwners() {
-        System.out.println(replicatedValues.entrySet());
+        System.out.println("checkReplicasOwners:: " + replicatedValues.entrySet());
         for (Map.Entry<Integer, ConcurrentHashMap<BigInteger, byte[]>> entry : replicatedValues.entrySet()) {
             System.out.println("ID: " + entry.getKey() + "  Keys: " + entry.getValue().toString());
             NodeInfo owner = null;
@@ -269,6 +269,7 @@ public class Node {
     }
 
     private CompletableFuture<Boolean> sendKeysToNode(NodeInfo destination, ConcurrentHashMap<BigInteger, byte[]> keys) throws Exception {
+        System.out.println("Sending keys to " + destination.getId());
         int destinationId = destination.getId();
         CompletableFuture<Boolean> sending = ongoingKeySendings.putIfAbsent(destinationId);
 
@@ -317,7 +318,7 @@ public class Node {
 
         int removedSuccessorIndex = fingerTable.informSuccessorsOfFailure(node);
         fingerTable.informFingersOfFailure(node);
-        fingerTable.informPredecessorOfFailure(node);
+//        fingerTable.informPredecessorOfFailure(node);
 
         /* If the removed successor index was less than REPLICATION_DEGREE - 1, it means that that successor was
          * replicating this node's local values. As such, we need to replicate to a new successor in order to
@@ -480,7 +481,7 @@ public class Node {
             if (originReplicas.size() == 0)
                 replicatedValues.remove(origin.getId());
 
-            System.out.println(originReplicas.toString());
+            System.out.println("updateReplicas :: " + originReplicas.toString());
         }
     }
 }
