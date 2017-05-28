@@ -16,6 +16,11 @@ public class DeleteResultOperation extends Operation {
         this.successful = successful;
     }
 
+    /**
+     * This Operation finishes the Delete Operation and removes it from the operation manager.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.ongoingDeletes.operationFinished(key, successful);

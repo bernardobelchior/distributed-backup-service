@@ -9,7 +9,10 @@ import server.utils.SynchronizedFixedLinkedList;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static server.chord.Node.MAX_NODES;
 import static server.chord.Node.OPERATION_MAX_FAILED_ATTEMPTS;
@@ -26,7 +29,6 @@ public class FingerTable {
     private final NodeInfo[] fingers;
     private final SynchronizedFixedLinkedList<NodeInfo> successors;
     private final NodeInfo self;
-    private final ExecutorService lookupThreadPool = Executors.newFixedThreadPool(10);
 
     FingerTable(NodeInfo self) {
         this.self = self;
@@ -39,6 +41,8 @@ public class FingerTable {
     }
 
     /**
+     * It updates the "fingers" array in th given index with the given given finger.
+     *
      * @param index
      * @param finger
      */
@@ -111,10 +115,23 @@ public class FingerTable {
             getFinger(i);
     }
 
+    /**
+     * Gets the Finger Key with the given node and index.
+     *
+     * @param node
+     * @param index
+     * @return
+     */
     private static int getFingerKey(NodeInfo node, int index) {
         return addToNodeId(node.getId(), (int) Math.pow(2, index));
     }
 
+
+    /**
+     * Gets the Finger with the given index.
+     *
+     * @param index
+     */
     private void getFinger(int index) {
         BigInteger keyToLookup = BigInteger.valueOf(getFingerKey(self, index));
 
@@ -149,6 +166,11 @@ public class FingerTable {
         }
     }
 
+    /**
+     * Informs other nodes that the given node exists and they update theirs Data structures.
+     *
+     * @param node
+     */
     void informAboutExistence(NodeInfo node) {
         updatePredecessor(node);
         updateSuccessors(node);
@@ -164,6 +186,14 @@ public class FingerTable {
         return (!successors.isEmpty() ? successors.get(0) : self);
     }
 
+
+    /**
+     * Gets the Nth Successor.
+     *
+     * @param index
+     * @return
+     * @throws IndexOutOfBoundsException
+     */
     NodeInfo getNthSuccessor(int index) throws IndexOutOfBoundsException {
         return successors.get(index);
     }
@@ -210,6 +240,12 @@ public class FingerTable {
         return false;
     }
 
+
+    /**
+     * Updates the successors Data structures with the given node.
+     *
+     * @param node
+     */
     private void updateSuccessors(NodeInfo node) {
         if (node.equals(self))
             return;
@@ -258,10 +294,20 @@ public class FingerTable {
             successors.add(node);
     }
 
+    /**
+     * Checks if the finger has successors.
+     *
+     * @return
+     */
     private boolean hasSuccessors() {
         return !successors.isEmpty();
     }
 
+    /**
+     * Informs all the Fingers that the given node has fail.
+     *
+     * @param node
+     */
     void informFingersOfFailure(NodeInfo node) {
         for (int i = fingers.length - 1; i >= 0; i--)
             if (fingers[i].equals(node)) {
@@ -270,6 +316,11 @@ public class FingerTable {
             }
     }
 
+    /**
+     * Informs all the Predecessors that the given node has fail.
+     *
+     * @param node
+     */
     void informPredecessorOfFailure(NodeInfo node) {
         if (predecessor.equals(node))
             setPredecessor(self);
@@ -329,6 +380,13 @@ public class FingerTable {
         return lookupResult;
     }
 
+
+    /**
+     * Selects the best node to start the lookup.
+     *
+     * @param key
+     * @return
+     */
     CompletableFuture<NodeInfo> lookup(BigInteger key) {
         if (keyBelongsToSuccessor(key))
             return lookupFrom(key, getSuccessor());
@@ -336,10 +394,23 @@ public class FingerTable {
             return lookupFrom(key, getNextBestNode(key));
     }
 
+    /**
+     * Checks if the given key belongd to the Successor.
+     *
+     * @param key
+     * @return
+     */
     public boolean keyBelongsToSuccessor(BigInteger key) {
         return between(self, getSuccessor(), key);
     }
 
+
+    /**
+     * Checks if the successors of the given node are the same.
+     *
+     * @param bootstrapperNode
+     * @return
+     */
     boolean findSuccessors(NodeInfo bootstrapperNode) {
         BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
 
@@ -385,6 +456,9 @@ public class FingerTable {
         notifySuccessor();
     }
 
+    /**
+     * Notifies the Successor.
+     */
     private void notifySuccessor() {
         NotifyOperation notification = new NotifyOperation(self);
 
@@ -394,6 +468,10 @@ public class FingerTable {
         }
     }
 
+
+    /**
+     * Starts the stabilization Protocol.
+     */
     void stabilizationProtocol() {
         if (!hasSuccessors())
             return;
@@ -402,6 +480,11 @@ public class FingerTable {
         fill();
     }
 
+    /**
+     * Gets the Successors.
+     *
+     * @return
+     */
     SynchronizedFixedLinkedList<NodeInfo> getSuccessors() {
         return successors;
     }

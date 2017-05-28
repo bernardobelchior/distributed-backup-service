@@ -28,6 +28,12 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         fileManager = dht.getFileManager();
     }
 
+    /**
+     * Starts the Backup Protocol from the file in the given path.
+     * @param pathName
+     * @return
+     * @throws IOException
+     */
     @Override
     public String backup(String pathName) throws IOException {
         byte[] file;
@@ -61,7 +67,14 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         }
     }
 
-
+    /**
+     * Starts the Restore Protocol from the file with the given key and stores it in the given path.
+     *
+     * @param hexKey
+     * @param filename
+     * @return
+     * @throws IOException
+     */
     @Override
     public boolean restore(String hexKey, String filename) throws IOException {
         BigInteger key = new BigInteger(DatatypeConverter.parseHexBinary(hexKey));
@@ -86,6 +99,12 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         return true;
     }
 
+    /**
+     *
+     * Starts the Delete Protocol of the file with the given key.
+     * @param hexKey
+     * @return
+     */
     @Override
     public boolean delete(String hexKey) {
         BigInteger key = new BigInteger(DatatypeConverter.parseHexBinary(hexKey));
@@ -94,6 +113,12 @@ public class InitiatorPeer extends UnicastRemoteObject implements IInitiatorPeer
         return ret;
     }
 
+    /**
+     *
+     * Starts the State protocol.
+     *
+     * @return
+     */
     @Override
     public String state() {
         return dht.getState();

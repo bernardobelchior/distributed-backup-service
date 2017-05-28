@@ -16,6 +16,11 @@ public class DeleteOperation extends Operation {
         this.key = key;
     }
 
+    /**
+     * This Operation deletes from the given current Node the value with the key.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.removeValue(key);

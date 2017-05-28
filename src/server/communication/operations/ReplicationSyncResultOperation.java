@@ -15,6 +15,11 @@ public class ReplicationSyncResultOperation extends Operation {
         this.keysToDelete = keysToDelete;
     }
 
+    /**
+     * This Operation finishes the Replication Sync Operation and removes it from the operation manager.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         currentNode.updateReplicas(origin, keysToDelete);

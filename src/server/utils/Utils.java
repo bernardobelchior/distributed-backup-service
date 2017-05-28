@@ -11,22 +11,54 @@ import static server.chord.Node.MAX_NODES;
 public class Utils {
     private static final String HASH_FUNCTION = "SHA-1";
 
+    /**
+     * Returns the hash from the given message.
+     *
+     * @param message
+     * @return
+     * @throws NoSuchAlgorithmException
+     */
     public static byte[] hash(byte[] message) throws NoSuchAlgorithmException {
         return MessageDigest.getInstance(HASH_FUNCTION).digest(message);
     }
 
+    /**
+     * Add the given value to the Node ID.
+     *
+     * @param nodeId
+     * @param value
+     * @return
+     */
     public static int addToNodeId(int nodeId, int value) {
         return Integer.remainderUnsigned(nodeId + value, MAX_NODES);
     }
 
+    /**
+     * Gets node from the given key.
+     *
+     * @param key
+     * @return
+     */
     public static int getNodeFromKey(BigInteger key) {
         return Integer.remainderUnsigned(key.intValue(), MAX_NODES);
     }
 
+    /**
+     * Gets the key of Successor of the given node.
+     *
+     * @param nodeInfo
+     * @return
+     */
     public static BigInteger getSuccessorKey(NodeInfo nodeInfo) {
         return BigInteger.valueOf(addToNodeId(nodeInfo.getId(), 1));
     }
 
+    /**
+     * Gets the key of Successor of the given node.
+     *
+     * @param nodeId
+     * @return
+     */
     public static BigInteger getSuccessorKey(int nodeId) {
         return BigInteger.valueOf(addToNodeId(nodeId, 1));
     }

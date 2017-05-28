@@ -70,6 +70,14 @@ public class Server {
         node.initiateStabilization();
     }
 
+    /**
+     *
+     * Gets his Own Addres with the given port.
+     * @param port
+     * @return
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
     private static InetAddress getOwnAddress(int port) throws ExecutionException, InterruptedException {
         CompletableFuture<InetAddress> wait = new CompletableFuture<>();
         try {

@@ -26,6 +26,11 @@ public class LookupOperation extends Operation {
             reachedDestination = true;
     }
 
+    /**
+     * This Operation searches the node and establishes the connection between that node and the given current node.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         if (--timeToLive < 0)

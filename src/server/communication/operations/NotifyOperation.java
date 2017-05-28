@@ -10,6 +10,11 @@ public class NotifyOperation extends Operation {
         super(origin);
     }
 
+    /**
+     * This Operation notifies the origin node of the new predecessor.
+     *
+     * @param currentNode
+     */
     @Override
     public void run(Node currentNode) {
         if (currentNode.updatePredecessor(origin))
