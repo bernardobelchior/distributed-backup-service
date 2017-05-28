@@ -49,23 +49,29 @@ public class SynchronizedFixedLinkedList<T> {
         return list.isEmpty();
     }
 
-    public boolean remove(Object object) {
+    /**
+     * Removes the object and returns the index it had.
+     *
+     * @param object Object to remove.
+     * @return Index of the removed object, or -1 in the of failure.
+     */
+    public int remove(Object object) {
         @SuppressWarnings("unchecked")
         T toRemove = (T) object;
 
         if (toRemove == null)
-            return false;
+            return -1;
 
         synchronized (list) {
             for (int i = 0; i < list.size(); i++) {
                 if (list.get(i).equals(toRemove)) {
                     list.remove(i);
-                    return true;
+                    return i;
                 }
             }
         }
 
-        return false;
+        return -1;
     }
 
     public T last() {

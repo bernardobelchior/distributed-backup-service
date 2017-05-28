@@ -23,24 +23,29 @@ public class Connection {
         socket = (SSLSocket) SSLSocketFactory.getDefault().
                 createSocket(destination.getAddress(), destination.getPort());
 
+        socket.setTcpNoDelay(true);
         objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
         objectInputStream = new ObjectInputStream(socket.getInputStream());
     }
 
     Connection(SSLSocket socket, Node currentNode, ExecutorService connectionsThreadPool) throws IOException {
         this.socket = socket;
+        socket.setTcpNoDelay(true);
         objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
         objectInputStream = new ObjectInputStream(socket.getInputStream());
-        connectionsThreadPool.submit(() -> waitForAuthentication(currentNode));
+        waitForAuthentication(currentNode);
+        //FIXME:: Is this needed?
+        //connectionsThreadPool.submit(() -> waitForAuthentication(currentNode));
     }
 
-    public boolean isOpen() {
+    boolean isOpen() {
         return !socket.isClosed();
     }
 
     public void sendOperation(Operation operation) throws IOException {
         try {
             synchronized (objectOutputStream) {
+                objectOutputStream.reset();
                 objectOutputStream.writeObject(operation);
                 objectOutputStream.flush();
             }
@@ -50,7 +55,7 @@ public class Connection {
         }
     }
 
-    public void waitForAuthentication(Node self) {
+    private void waitForAuthentication(Node self) {
         try {
             Operation operation;
             operation = ((Operation) objectInputStream.readObject());
@@ -65,24 +70,25 @@ public class Connection {
         }
     }
 
-    public void listen(Node self) {
+    void listen(Node self) {
         while (true) {
             try {
                 ((Operation) objectInputStream.readObject()).run(self);
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
+            } catch (ClassNotFoundException ignored) {
             } catch (IOException e) {
-                e.printStackTrace();
                 closeConnection();
                 return;
             }
         }
     }
 
-    private void closeConnection() {
-        Mailman.connectionClosed(destination);
+    void closeConnection() {
+        if (destination != null)
+            Mailman.connectionClosed(destination);
 
         try {
+            objectInputStream.close();
+            objectOutputStream.close();
             socket.close();
         } catch (IOException e) {
             System.err.println("Unable to close socket");

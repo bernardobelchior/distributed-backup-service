@@ -126,8 +126,12 @@ public class DistributedHashTable {
         return localValues.get(key);
     }
 
-    HashSet<BigInteger> getAllKeys() {
+    HashSet<BigInteger> getKeySet() {
         return new HashSet<>(Collections.list(localValues.keys()));
+    }
+
+    ConcurrentHashMap<BigInteger, byte[]> getLocalValues() {
+        return localValues;
     }
 
     ConcurrentHashMap<BigInteger, byte[]> getDifference(HashSet<BigInteger> keys) {

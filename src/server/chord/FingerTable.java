@@ -12,6 +12,7 @@ import java.math.BigInteger;
 import java.util.concurrent.*;
 
 import static server.chord.Node.MAX_NODES;
+import static server.chord.Node.OPERATION_MAX_FAILED_ATTEMPTS;
 import static server.utils.Utils.*;
 
 public class FingerTable {
@@ -117,14 +118,21 @@ public class FingerTable {
     private void getFinger(int index) {
         BigInteger keyToLookup = BigInteger.valueOf(getFingerKey(self, index));
 
-        try {
-            CompletableFuture<Void> fingerLookup = lookup(keyToLookup)
-                    .thenAcceptAsync(this::informAboutExistence, lookupThreadPool);
+        int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+        while (attempts > 0) {
+            try {
+                CompletableFuture<Void> fingerLookup = lookup(keyToLookup)
+                        .thenAcceptAsync(this::informAboutExistence, lookupThreadPool);
 
-            fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | InterruptedException | ExecutionException e) {
-            ongoingLookups.operationFailed(keyToLookup, new KeyNotFoundException());
+                fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+                break;
+            } catch (TimeoutException | InterruptedException | ExecutionException e) {
+                attempts--;
+            }
         }
+
+        if (attempts <= 0)
+            ongoingLookups.operationFailed(keyToLookup, new KeyNotFoundException());
     }
 
     /**
@@ -267,7 +275,14 @@ public class FingerTable {
             setPredecessor(null);
     }
 
-    void informSuccessorsOfFailure(NodeInfo node) {
+    /**
+     * Informs this node's successor about the failure of a node. This function will iterate through all of this node's
+     * successors and removes the node that failed, starting a new lookup operation to find a new successor.
+     *
+     * @param node Node that failed.
+     * @return Index of the removed node, or -1 if none was removed.
+     */
+    int informSuccessorsOfFailure(NodeInfo node) {
         /* Inform my second successor that its predecessor failed. */
         if (successors.get(0).equals(node)) {
             try {
@@ -278,12 +293,15 @@ public class FingerTable {
         }
 
         System.err.println("Node with ID " + node.getId() + " failed!");
-        if (successors.remove(node)) {
-            if (successors.isEmpty())
-                lookup(BigInteger.valueOf(addToNodeId(self.getId(), 1)));
-            else
-                lookup(BigInteger.valueOf(addToNodeId(successors.last().getId(), 1)));
+        int removedIndex = successors.remove(node);
+
+        if (removedIndex == 0) {
+            lookup(BigInteger.valueOf(addToNodeId(self.getId(), 1)));
+        } else if (removedIndex > 0) {
+            lookup(BigInteger.valueOf(addToNodeId(successors.last().getId(), 1)));
         }
+
+        return removedIndex;
     }
 
     /**
@@ -328,13 +346,19 @@ public class FingerTable {
         for (int i = 0; i < NUM_SUCCESSORS; i++) {
             CompletableFuture<NodeInfo> successorLookup = lookupFrom(successorKey, bootstrapperNode);
 
-            try {
-                successorLookup.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-                /* If the lookup did not complete correctly */
-                return false;
+            int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+            while (attempts > 0) {
+                try {
+                    successorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+                    break;
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    /* If the lookup did not complete correctly */
+                    attempts--;
+                }
             }
+
+            if (attempts <= 0)
+                return false;
 
             try {
                 successorKey = BigInteger.valueOf(addToNodeId(getNthSuccessor(i).getId(), 1));

@@ -22,7 +22,7 @@ import static server.chord.FingerTable.LOOKUP_TIMEOUT;
 public class Node {
     public static final int MAX_NODES = 128;
     public static final int OPERATION_MAX_FAILED_ATTEMPTS = 3;
-    private static final int REPLICATION_DEGREE = 3;
+    private static final int REPLICATION_DEGREE = 4;
 
     private final NodeInfo self;
     private final FingerTable fingerTable;
@@ -51,7 +51,7 @@ public class Node {
         dht = new DistributedHashTable(this);
     }
 
-    private CompletableFuture<NodeInfo> requestSuccessorPredecessor(NodeInfo successor) throws Exception {
+    private CompletableFuture<NodeInfo> requestSuccessorPredecessor(NodeInfo successor) throws IOException {
         /* Check if the request is already being made */
 
         CompletableFuture<NodeInfo> requestResult = ongoingPredecessorLookup;
@@ -60,7 +60,13 @@ public class Node {
 
         requestResult = new CompletableFuture<>();
         ongoingPredecessorLookup = requestResult;
-        Mailman.sendOperation(successor, new RequestPredecessorOperation(self));
+        try {
+            Mailman.sendOperation(successor, new RequestPredecessorOperation(self));
+        } catch (IOException e) {
+            ongoingPredecessorLookup = null;
+            requestResult.completeExceptionally(e);
+            throw e;
+        }
 
         return requestResult;
     }
@@ -91,22 +97,19 @@ public class Node {
 
         NodeInfo successor = fingerTable.getSuccessor();
 
+        int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+
         /* Get the successor's predecessor, which will be the new node's predecessor */
-        CompletableFuture<Void> getPredecessor;
-        try {
-            getPredecessor = requestSuccessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+        while (attempts > 0) {
+            try {
+                requestSuccessorPredecessor(successor).thenAcceptAsync(fingerTable::updatePredecessor, threadPool).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+                break;
+            } catch (CancellationException | ExecutionException | InterruptedException | TimeoutException | IOException e) {
+                attempts--;
+            }
         }
 
-        try {
-            getPredecessor.get();
-        } catch (CancellationException | ExecutionException | InterruptedException e) {
-            return false;
-        }
-
-        return true;
+        return attempts > 0;
     }
 
     /**
@@ -162,30 +165,38 @@ public class Node {
      * If it is not alive, then insert all of its keys in the network.
      */
     private void checkReplicasOwners() {
+        System.out.println(replicatedValues.entrySet());
         for (Map.Entry<Integer, ConcurrentHashMap<BigInteger, byte[]>> entry : replicatedValues.entrySet()) {
+            System.out.println("ID: " + entry.getKey() + "  Keys: " + entry.getValue().toString());
+            NodeInfo owner = null;
             int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+
             while (attempts > 0) {
-                NodeInfo owner;
                 try {
                     owner = fingerTable.lookup(BigInteger.valueOf(entry.getKey())).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
 
+                    System.out.println("Sending to " + owner.getId());
                     Mailman.sendOperation(
                             owner,
                             new ReplicationSyncOperation(
                                     self,
                                     new HashSet<>(Collections.list(entry.getValue().keys()))));
+                    System.out.println("Sent to " + owner.getId());
 
                     break;
-                } catch (Exception e) {
+                } catch (TimeoutException | InterruptedException | ExecutionException ignored) {
+                    /* These exceptions are thrown by the lookup, and it already handles node failure on lookup. */
+                    attempts--;
+                } catch (IOException e) {
                     e.printStackTrace();
                     System.out.println("Lookup for check replicas owners has failed. Target key: " + BigInteger.valueOf(entry.getKey()));
                     attempts--;
-
-                    if (attempts <= 0) {
-                        entry.getValue().forEach(this::insert);
-                        break;
-                    }
                 }
+            }
+
+            if (attempts <= 0) {
+                if (owner != null)
+                    informAboutFailure(owner);
             }
         }
     }
@@ -220,9 +231,19 @@ public class Node {
                 return;
             }
 
-            try {
-                Mailman.sendOperation(nthSuccessor, new ReplicationOperation(self, key, value));
-            } catch (Exception e) {
+            int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+            while (attempts > 0) {
+                try {
+                    Mailman.sendOperation(nthSuccessor, new ReplicationOperation(self, key, value));
+                    break;
+                } catch (IOException e) {
+                    attempts--;
+                }
+            }
+
+            /* If the operation exceeded its max attempts, then inform about its nthSuccessor failure and retry.
+             * After informing, the successor list will be updated and a new node will be selected, if available. */
+            if (attempts <= 0) {
                 informAboutFailure(nthSuccessor);
                 i--;
             }
@@ -294,10 +315,17 @@ public class Node {
         Mailman.state();
         NodeInfo predecessor = fingerTable.getPredecessor();
 
-        fingerTable.informSuccessorsOfFailure(node);
+        int removedSuccessorIndex = fingerTable.informSuccessorsOfFailure(node);
         fingerTable.informFingersOfFailure(node);
         fingerTable.informPredecessorOfFailure(node);
 
+        /* If the removed successor index was less than REPLICATION_DEGREE - 1, it means that that successor was
+         * replicating this node's local values. As such, we need to replicate to a new successor in order to
+         * maintain the REPLICATION_DEGREE. */
+        if (removedSuccessorIndex < REPLICATION_DEGREE - 1)
+            replicateTo(dht.getLocalValues(), fingerTable.getNthSuccessor(REPLICATION_DEGREE - 1));
+
+        /* If my predecessor fails, then I will take over its keys. */
         if (predecessor.equals(node)) {
             ConcurrentHashMap<BigInteger, byte[]> replicas = replicatedValues.remove(node.getId());
             if (replicas == null)
@@ -321,12 +349,6 @@ public class Node {
     }
 
     public void onLookupFinished(BigInteger key, NodeInfo targetNode) {
-        if (key.intValue() == 31)
-            try {
-                throw new Exception();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         informAboutExistence(targetNode);
         fingerTable.ongoingLookups.operationFinished(key, targetNode);
     }
@@ -419,42 +441,46 @@ public class Node {
      */
     @SuppressWarnings("unchecked")
     public void synchronizeReplicas(NodeInfo origin, HashSet<BigInteger> keys) {
+        System.out.println("Received sync replicas from " + origin.getId());
         HashSet<BigInteger> keysToDelete;
 
         if (fingerTable.getSuccessors().contains(origin))
             keysToDelete = keys;
         else {
             keysToDelete = (HashSet<BigInteger>) keys.clone();
-            keysToDelete.removeAll(dht.getAllKeys());
+            keysToDelete.removeAll(dht.getKeySet());
         }
 
-        try {
-            Mailman.sendOperation(origin, new ReplicationSyncResultOperation(self, keysToDelete));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return;
+        int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
+        while (attempts > 0) {
+            try {
+                Mailman.sendOperation(origin, new ReplicationSyncResultOperation(self, keysToDelete));
+                System.out.println("Replying to replication sync to " + origin.getId());
+                break;
+            } catch (IOException e) {
+                attempts--;
+                e.printStackTrace();
+            }
         }
+
+        if (attempts <= 0)
+            return;
 
         ConcurrentHashMap<BigInteger, byte[]> toReplicate = dht.getDifference(keys);
         replicateTo(toReplicate, origin);
     }
 
     public void updateReplicas(NodeInfo origin, HashSet<BigInteger> keysToDelete) {
+        System.out.println("Received update replicas.");
         ConcurrentHashMap<BigInteger, byte[]> originReplicas = replicatedValues.get(origin.getId());
 
-        if (originReplicas == null) {
-            System.out.println(origin);
-            System.out.println(replicatedValues);
-            try {
-                throw new Exception();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } else {
+        if (originReplicas != null) {
             keysToDelete.forEach(originReplicas::remove);
 
             if (originReplicas.size() == 0)
                 replicatedValues.remove(origin.getId());
+
+            System.out.println(originReplicas.toString());
         }
     }
 }

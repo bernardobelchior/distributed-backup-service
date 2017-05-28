@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static server.chord.Node.OPERATION_MAX_FAILED_ATTEMPTS;
+
 public class Mailman {
     private static final int MAX_SIMULTANEOUS_CONNECTIONS = 128;
 
@@ -40,18 +42,19 @@ public class Mailman {
                 : addOpenConnection(new Connection(nodeInfo));
     }
 
-    public static void sendOperation(NodeInfo destination, Operation operation) throws Exception {
+    public static void sendOperation(NodeInfo destination, Operation operation) throws IOException {
         /* If we want to send the operation to the current node, it is equivalent to just running it.
          * Otherwise, send to the correct node as expected. */
         if (destination.equals(currentNode.getInfo())) {
             operation.run(currentNode);
         } else {
-            int attempts = 3;
+            int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
             while (attempts > 0) {
                 try {
                     getOrOpenConnection(destination).sendOperation(operation);
                     break;
-                } catch (Exception e) {
+                } catch (IOException e) {
+                    e.printStackTrace();
                     openConnections.remove(destination);
                     addOpenConnection(new Connection(destination));
                     attempts--;
@@ -62,7 +65,7 @@ public class Mailman {
         }
     }
 
-    public static void listenForConnections(int port) {
+    private static void listenForConnections(int port) {
         SSLServerSocket serverSocket;
         try {
             serverSocket = (SSLServerSocket)
@@ -85,13 +88,16 @@ public class Mailman {
         }
     }
 
-    public static Connection addOpenConnection(Connection connection) throws IOException {
-        openConnections.put(connection.getNodeInfo(), connection);
+    static Connection addOpenConnection(Connection connection) throws IOException {
+        Connection previousConnection = openConnections.put(connection.getNodeInfo(), connection);
+        if (previousConnection != null)
+            previousConnection.closeConnection();
+
         connectionsThreadPool.submit(() -> connection.listen(currentNode));
         return connection;
     }
 
-    public static void connectionClosed(NodeInfo connection) {
+    static void connectionClosed(NodeInfo connection) {
         openConnections.remove(connection);
     }
 
