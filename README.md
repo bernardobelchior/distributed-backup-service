@@ -43,7 +43,7 @@ java client.TestApp <peer-access-point> <operation>
 The peer access point is the one given when starting the server we want to connect to; the operation is what identifies what to test and has the following possible values:
 * `STATE`
 * `BACKUP <filename>`
-* `RESTORE <key>`
+* `RESTORE <key> <path-to-output>`
 * `DELETE <key>`
 
 ## Purpose of the Application 
