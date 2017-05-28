@@ -10,11 +10,6 @@ state() {
 	sleep 0.1
 }
 
-launch_peer() {
-	eval $terminal "\"java -Djavax.net.ssl.keyStore=keystore.keys -Djavax.net.ssl.keyStorePassword=123456 -Djavax.net.ssl.trustStore=truststore.keys -Djavax.net.ssl.trustStorePassword=123456 -Dfile.encoding=UTF-8 -classpath $classpath server.Server $1 $2 $3 $4; bash\" &"
-	sleep 0.1
-}
-
 os=$(uname)
 
 if [ "$os" = "Linux" ]; then ##Figure out how to know terminal name
@@ -51,6 +46,8 @@ state "3"
 state "4" 
 state "5" 
 state "6" 
+state "7" 
+state "8" 
 
 trap "exit" INT TERM
 trap "kill 0" EXIT
