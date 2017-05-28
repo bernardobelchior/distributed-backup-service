@@ -31,14 +31,8 @@ else
 fi
 
 compilePath=$(echo out/production/distributed-backup-system/)
-#sh compile.sh $compilePath
 
 classpath=$(realpath $compilePath)
-
-#pushd .
-#cd $classpath
-#rmiregistry &
-#popd
 
 state "1" 
 state "2" 
