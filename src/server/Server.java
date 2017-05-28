@@ -67,7 +67,7 @@ public class Server {
         }
 
         System.out.println("Joined the network successfully.");
-        node.initializeStabilization();
+        node.initiateStabilization();
     }
 
     private static InetAddress getOwnAddress(int port) throws ExecutionException, InterruptedException {

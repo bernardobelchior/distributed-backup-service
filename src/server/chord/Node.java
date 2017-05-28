@@ -149,7 +149,7 @@ public class Node {
         ongoingPredecessorLookup = null;
     }
 
-    public void initializeStabilization() {
+    public void initiateStabilization() {
         stabilizationExecutor.scheduleWithFixedDelay(this::stabilizationProtocol, 5, 5, TimeUnit.SECONDS);
 
     }

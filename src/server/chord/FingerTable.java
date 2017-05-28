@@ -266,8 +266,10 @@ public class FingerTable {
 
     void informFingersOfFailure(NodeInfo node) {
         for (int i = fingers.length - 1; i >= 0; i--)
-            if (fingers[i].equals(node))
+            if (fingers[i].equals(node)) {
+                setFinger(i, self);
                 getFinger(i);
+            }
     }
 
     void informPredecessorOfFailure(NodeInfo node) {
