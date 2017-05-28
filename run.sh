@@ -7,7 +7,7 @@ exists()
 
 launch_peer() {
 	eval $terminal "\"java -Djavax.net.ssl.keyStore=keystore.keys -Djavax.net.ssl.keyStorePassword=123456 -Djavax.net.ssl.trustStore=truststore.keys -Djavax.net.ssl.trustStorePassword=123456 -Dfile.encoding=UTF-8 -classpath $classpath server.Server $1 $2 $3 $4; bash\" &"
-	sleep 0.1
+	sleep 0.5
 }
 
 os=$(uname)
@@ -46,6 +46,8 @@ launch_peer "3" "1236" "193.136.33.112" "1234"
 launch_peer "4" "1237" "193.136.33.112" "1235"
 launch_peer "5" "1238" "193.136.33.112" "1235"
 launch_peer "6" "1239" "193.136.33.112" "1235"
+launch_peer "7" "1240" "193.136.33.112" "1234"
+launch_peer "8" "1241" "193.136.33.112" "1234"
 
 trap "exit" INT TERM
 trap "kill 0" EXIT
