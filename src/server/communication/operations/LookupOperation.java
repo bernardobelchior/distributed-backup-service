@@ -9,7 +9,6 @@ import server.communication.Operation;
 import java.math.BigInteger;
 
 import static server.chord.DistributedHashTable.MAXIMUM_HOPS;
-import static server.chord.Node.MAX_NODES;
 
 public class LookupOperation extends Operation {
     private BigInteger key;
@@ -25,16 +24,12 @@ public class LookupOperation extends Operation {
 
         if (fingerTable.keyBelongsToSuccessor(key) && fingerTable.getSuccessor().equals(targetNode))
             reachedDestination = true;
-        System.out.println(reachedDestination);
     }
 
     @Override
     public void run(Node currentNode) {
         if (--timeToLive < 0)
             return;
-
-        if (Integer.remainderUnsigned(key.intValue(), MAX_NODES) == 32)
-            System.out.println("Came from: " + lastNode.getId());
 
         NodeInfo lastNode = this.lastNode;
         this.lastNode = currentNode.getInfo();

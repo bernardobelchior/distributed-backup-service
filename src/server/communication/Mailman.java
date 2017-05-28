@@ -100,8 +100,4 @@ public class Mailman {
     static void connectionClosed(NodeInfo connection) {
         openConnections.remove(connection);
     }
-
-    public static void state() {
-        System.out.println(openConnections.toString());
-    }
 }

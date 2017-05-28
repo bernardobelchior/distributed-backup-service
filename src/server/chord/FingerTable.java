@@ -286,7 +286,6 @@ public class FingerTable {
         /* Inform my second successor that its predecessor failed. */
         if (successors.get(0).equals(node)) {
             try {
-                System.out.println("Inform successors :: sending notification");
                 Mailman.sendOperation(successors.get(1), new NotifyOperation(self));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -319,7 +318,6 @@ public class FingerTable {
         if (lookupResult != null)
             return lookupResult;
 
-        System.out.println("Lookup from " + startingNode.getId());
         lookupResult = ongoingLookups.get(key);
 
         try {
@@ -346,13 +344,12 @@ public class FingerTable {
         BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
 
         for (int i = 0; i < NUM_SUCCESSORS; i++) {
-            System.out.println(i);
             CompletableFuture<NodeInfo> successorLookup = lookupFrom(successorKey, bootstrapperNode);
 
             int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
             while (attempts > 0) {
                 try {
-                    System.out.println("Found successor[" + i + "] = " + successorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS).getId());
+                    successorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
                     break;
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     /* If the lookup did not complete correctly */
@@ -366,7 +363,6 @@ public class FingerTable {
             try {
                 successorKey = BigInteger.valueOf(addToNodeId(getNthSuccessor(i).getId(), 1));
             } catch (IndexOutOfBoundsException e) {
-                System.out.println("Index out of bounds");
                 /* This means that there is no Nth successor. As such, we treat it as a normal thing that only
                  * happens when the network has a number of nodes lower than NUM_SUCCESSORS. */
                 break;
@@ -390,13 +386,11 @@ public class FingerTable {
     }
 
     private void notifySuccessor() {
-        System.out.println("notifySuccessor :: sSending operation");
         NotifyOperation notification = new NotifyOperation(self);
 
         try {
             Mailman.sendOperation(getSuccessor(), notification);
-        } catch (Exception e) {
-            System.err.println("Unable to notify successor");
+        } catch (Exception ignored) {
         }
     }
 
@@ -404,33 +398,8 @@ public class FingerTable {
         if (!hasSuccessors())
             return;
 
-        //stabilizePredecessor();
         stabilizeSuccessors();
         fill();
-    }
-
-    private void stabilizePredecessor() {
-        int attempts = 3;
-
-        while (attempts > 0) {
-            try {
-                System.out.println("Attempts: " + attempts);
-                lookup(BigInteger.valueOf(getPredecessor().getId()))
-                        .get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
-                break;
-            } catch (Exception e) {
-                e.printStackTrace();
-                attempts--;
-                if (attempts <= 0) {
-                    System.err.println("Predecessor failed!");
-                    NodeInfo self = this.self;
-                    informFingersOfFailure(predecessor);
-                    informSuccessorsOfFailure(predecessor);
-                    setPredecessor(self);
-                }
-
-            }
-        }
     }
 
     SynchronizedFixedLinkedList<NodeInfo> getSuccessors() {
