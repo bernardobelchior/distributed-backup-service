@@ -1,6 +1,5 @@
 package server.chord;
 
-import org.omg.CORBA.TIMEOUT;
 import server.communication.Mailman;
 import server.communication.OperationManager;
 import server.communication.operations.LookupOperation;
@@ -122,10 +121,8 @@ public class FingerTable {
         int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
         while (attempts > 0) {
             try {
-                CompletableFuture<Void> fingerLookup = lookup(keyToLookup)
-                        .thenAcceptAsync(this::informAboutExistence, lookupThreadPool);
-
-                fingerLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+                /* The lookup operation already informs about node the result's existence */
+                lookup(keyToLookup).get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
                 break;
             } catch (TimeoutException | InterruptedException | ExecutionException e) {
                 attempts--;
@@ -214,7 +211,6 @@ public class FingerTable {
     }
 
     private void updateSuccessors(NodeInfo node) {
-        System.out.println("UpdateSuccessors :: updating with node " + node.getId());
         if (node.equals(self))
             return;
 
@@ -276,7 +272,7 @@ public class FingerTable {
 
     void informPredecessorOfFailure(NodeInfo node) {
         if (predecessor.equals(node))
-            setPredecessor(null);
+            setPredecessor(self);
     }
 
     /**
@@ -313,21 +309,21 @@ public class FingerTable {
      * Search for a key, starting from a specific node
      *
      * @param key
-     * @param nodeToLookup
+     * @param startingNode
      * @return
      * @throws IOException
      */
-    private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo nodeToLookup) {
+    private CompletableFuture<NodeInfo> lookupFrom(BigInteger key, NodeInfo startingNode) {
         CompletableFuture<NodeInfo> lookupResult = ongoingLookups.putIfAbsent(key);
 
         if (lookupResult != null)
             return lookupResult;
 
-        System.out.println("Lookup from " + nodeToLookup.getId());
+        System.out.println("Lookup from " + startingNode.getId());
         lookupResult = ongoingLookups.get(key);
 
         try {
-            Mailman.sendOperation(nodeToLookup, new LookupOperation(this, self, key, nodeToLookup));
+            Mailman.sendOperation(startingNode, new LookupOperation(this, self, key, startingNode));
         } catch (Exception e) {
             ongoingLookups.operationFailed(key, e);
         }
@@ -347,7 +343,6 @@ public class FingerTable {
     }
 
     boolean findSuccessors(NodeInfo bootstrapperNode) {
-        System.out.println("findSuccessors");
         BigInteger successorKey = BigInteger.valueOf(addToNodeId(self.getId(), 1));
 
         for (int i = 0; i < NUM_SUCCESSORS; i++) {
@@ -356,9 +351,8 @@ public class FingerTable {
 
             int attempts = OPERATION_MAX_FAILED_ATTEMPTS;
             while (attempts > 0) {
-                System.out.println("Bootstrapping :: attempts = " + attempts);
                 try {
-                    successorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
+                    System.out.println("Found successor[" + i + "] = " + successorLookup.get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS).getId());
                     break;
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     /* If the lookup did not complete correctly */
@@ -410,7 +404,7 @@ public class FingerTable {
         if (!hasSuccessors())
             return;
 
-        stabilizePredecessor();
+        //stabilizePredecessor();
         stabilizeSuccessors();
         fill();
     }
@@ -422,12 +416,12 @@ public class FingerTable {
             try {
                 System.out.println("Attempts: " + attempts);
                 lookup(BigInteger.valueOf(getPredecessor().getId()))
-                        .get(LOOKUP_TIMEOUT,TimeUnit.MILLISECONDS);
+                        .get(LOOKUP_TIMEOUT, TimeUnit.MILLISECONDS);
                 break;
-            } catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 attempts--;
-                if (attempts <= 0){
+                if (attempts <= 0) {
                     System.err.println("Predecessor failed!");
                     NodeInfo self = this.self;
                     informFingersOfFailure(predecessor);

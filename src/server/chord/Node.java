@@ -318,7 +318,7 @@ public class Node {
 
         int removedSuccessorIndex = fingerTable.informSuccessorsOfFailure(node);
         fingerTable.informFingersOfFailure(node);
-//        fingerTable.informPredecessorOfFailure(node);
+        fingerTable.informPredecessorOfFailure(node);
 
         /* If the removed successor index was less than REPLICATION_DEGREE - 1, it means that that successor was
          * replicating this node's local values. As such, we need to replicate to a new successor in order to
