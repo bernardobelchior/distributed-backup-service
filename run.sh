@@ -23,7 +23,7 @@ if [ "$os" = "Linux" ]; then ##Figure out how to know terminal name
 		exit 1
 	fi
 
-	terminal=$(echo $terminal -e $BASH -c)
+	terminal=$(echo $terminal -e bash -c)
 elif [ "$os" = "Darwin" ]; then
 	terminal=$(echo open -a Terminal.app)
 else
