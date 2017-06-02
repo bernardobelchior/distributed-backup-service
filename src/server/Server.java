@@ -54,10 +54,11 @@ public class Server {
         /* Joining an existing network */
         if (args.length == 4) {
             int bootstrapPort = Integer.parseUnsignedInt(args[3]);
+            InetAddress bootstrapAddress = InetAddress.getByName(args[2]);
 
             try {
                 System.out.println("Starting the process of joining the network...");
-                if (!node.bootstrap(new NodeInfo(address, bootstrapPort))) {
+                if (!node.bootstrap(new NodeInfo(bootstrapAddress, bootstrapPort))) {
                     System.err.println("Node bootstrapping failed. Exiting..");
                     return;
                 }
@@ -71,8 +72,8 @@ public class Server {
     }
 
     /**
-     *
      * Gets his Own Addres with the given port.
+     *
      * @param port
      * @return
      * @throws ExecutionException
