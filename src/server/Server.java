@@ -41,7 +41,7 @@ public class Server {
             return;
         }
 
-        Mailman.init(node, port);
+        Mailman.init(node, address, port);
 
         try {
             LocateRegistry.getRegistry().rebind(args[0], new InitiatorPeer(node.getDistributedHashTable()));
@@ -71,8 +71,8 @@ public class Server {
     }
 
     /**
-     *
      * Gets his Own Addres with the given port.
+     *
      * @param port
      * @return
      * @throws ExecutionException

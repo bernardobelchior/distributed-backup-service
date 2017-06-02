@@ -7,6 +7,7 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,11 +25,11 @@ public class Mailman {
      * Initiates the listening for Connections.
      *
      * @param currentNode
-     * @param port
+     * @param address
      */
-    public static void init(Node currentNode, int port) {
+    public static void init(Node currentNode, InetAddress address, int port) {
         Mailman.currentNode = currentNode;
-        new Thread(() -> listenForConnections(port)).start();
+        new Thread(() -> listenForConnections(address, port)).start();
     }
 
     /**
@@ -97,11 +98,11 @@ public class Mailman {
      *
      * @param port
      */
-    private static void listenForConnections(int port) {
+    private static void listenForConnections(InetAddress address, int port) {
         SSLServerSocket serverSocket;
         try {
             serverSocket = (SSLServerSocket)
-                    SSLServerSocketFactory.getDefault().createServerSocket(port);
+                    SSLServerSocketFactory.getDefault().createServerSocket(port, 20, address);
         } catch (IOException e) {
             System.err.println("Error creating server socket.");
             e.printStackTrace();
